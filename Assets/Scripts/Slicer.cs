@@ -108,7 +108,7 @@ public class Slicer : MonoBehaviour {
 			} else {
 				// Determine which line segment intersects plane
 				Vector3 p1, p2, p3;
-				int[] triOrder;
+				int[] triOrder; // triangle vertex-order CW vs. CCW
 				if(prod1 * prod2 > 0) {
 					p1 = worldVerts[2];
 					p2 = worldVerts[0];
@@ -125,8 +125,7 @@ public class Slicer : MonoBehaviour {
 					p3 = worldVerts[2];
 					triOrder = new int[] {0,3,4, 4,1,2, 4,3,1};
 				}
-				// POIs
-				// local space
+				// bisected triangle vertices - local space
 				Vector3[] localTriVerts = {
 					objTransform.InverseTransformPoint(p1),
 					objTransform.InverseTransformPoint(p2),
@@ -134,7 +133,7 @@ public class Slicer : MonoBehaviour {
 					objTransform.InverseTransformPoint(VectorPlanePOI(p1, (p2 - p1).normalized, plane)),
 					objTransform.InverseTransformPoint(VectorPlanePOI(p1, (p3 - p1).normalized, plane))
 				};
-				// simple bisected triangle
+				// Add bisected triangle to slice respectively
 				if(Vector3.Dot(plane.normal, p1 - plane.point) > 0) {
 					// Slice 1
 					for(int j = 0; j < 3; j++) {
@@ -145,12 +144,12 @@ public class Slicer : MonoBehaviour {
 					// Slice 2
 					for(int j = 3; j < 6; j++) {
 						slice2Verts.Add(localTriVerts[triOrder[j]]);
-						slice2Tris.Add(slice2TriCounter * 3 - (3 - (j - 3)));
+						slice2Tris.Add(slice2TriCounter * 3 - (3 - j % 3));
 					}
 					slice2TriCounter++;
 					for(int j = 6; j < 9; j++) {
 						slice2Verts.Add(localTriVerts[triOrder[j]]);
-						slice2Tris.Add(slice2TriCounter * 3 - (3 - (j - 6)));
+						slice2Tris.Add(slice2TriCounter * 3 - (3 - j % 3));
 					}
 					slice2TriCounter++;
 				} else {
@@ -163,12 +162,12 @@ public class Slicer : MonoBehaviour {
 					// Slice 1
 					for(int j = 3; j < 6; j++) {
 						slice1Verts.Add(localTriVerts[triOrder[j]]);
-						slice1Tris.Add(slice1TriCounter * 3 - (3 - (j - 3)));
+						slice1Tris.Add(slice1TriCounter * 3 - (3 - j % 3));
 					}
 					slice1TriCounter++;
 					for(int j = 6; j < 9; j++) {
 						slice1Verts.Add(localTriVerts[triOrder[j]]);
-						slice1Tris.Add(slice1TriCounter * 3 - (3 - (j - 6)));
+						slice1Tris.Add(slice1TriCounter * 3 - (3 - j % 3));
 					}
 					slice1TriCounter++;
 				}			
