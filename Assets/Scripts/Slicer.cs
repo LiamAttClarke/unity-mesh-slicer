@@ -107,46 +107,71 @@ public class Slicer : MonoBehaviour {
 				slice2TriCounter++;
 			} else {
 				// Determine which line segment intersects plane
-				Vector3 p1, p2, worldP3;
+				Vector3 p1, p2, p3;
 				int[] triOrder;
 				if(prod1 * prod2 > 0) {
+					p1 = worldVerts[2];
+					p2 = worldVerts[0];
+					p3 = worldVerts[1];
+					triOrder = new int[] {4,0,3, 2,4,1, 1,4,3};
+				} else if(prod1 * prod3 > 0) {
+					p1 = worldVerts[1];
+					p2 = worldVerts[0];
+					p3 = worldVerts[2];
+					triOrder = new int[] {3,0,4, 2,1,4, 4,1,3};
+				} else {
 					p1 = worldVerts[0];
 					p2 = worldVerts[1];
-					worldP3 = worldVerts[2];
-					triOrder = new int[] {0,1,2};
-				} else if(prod1 * prod3 > 0) {
-					p1 = worldVerts[0];
-					p2 = worldVerts[2];
-					worldP3 = worldVerts[1];
-					triOrder = new int[] {0,2,1};
-				} else {
-					p1 = worldVerts[1];
-					p2 = worldVerts[2];
-					worldP3 = worldVerts[0];
-					triOrder = new int[] {1,2,0};
+					p3 = worldVerts[2];
+					triOrder = new int[] {0,3,4, 4,1,2, 4,3,1};
 				}
 				// POIs
 				// local space
-				Vector3[] localPOIs = {
-					objTransform.InverseTransformPoint(VectorPlanePOI(worldP3, (p1 - worldP3).normalized, plane)),
-					objTransform.InverseTransformPoint(VectorPlanePOI(worldP3, (p2 - worldP3).normalized, plane)),
-					objTransform.InverseTransformPoint(worldP3)
+				Vector3[] localTriVerts = {
+					objTransform.InverseTransformPoint(p1),
+					objTransform.InverseTransformPoint(p2),
+					objTransform.InverseTransformPoint(p3),
+					objTransform.InverseTransformPoint(VectorPlanePOI(p1, (p2 - p1).normalized, plane)),
+					objTransform.InverseTransformPoint(VectorPlanePOI(p1, (p3 - p1).normalized, plane))
 				};
 				// simple bisected triangle
-				if(Vector3.Dot(plane.normal, worldP3 - plane.point) < 0) {
-					for(int j = 0; j < triOrder.Length; j++) {
-						slice1Verts.Add(localPOIs[triOrder[j]]);
+				if(Vector3.Dot(plane.normal, p1 - plane.point) > 0) {
+					// Slice 1
+					for(int j = 0; j < 3; j++) {
+						slice1Verts.Add(localTriVerts[triOrder[j]]);
 						slice1Tris.Add(slice1TriCounter * 3 - (3 - j));
 					}
 					slice1TriCounter++;
+					// Slice 2
+					for(int j = 3; j < 6; j++) {
+						slice2Verts.Add(localTriVerts[triOrder[j]]);
+						slice2Tris.Add(slice2TriCounter * 3 - (3 - (j - 3)));
+					}
+					slice2TriCounter++;
+					for(int j = 6; j < 9; j++) {
+						slice2Verts.Add(localTriVerts[triOrder[j]]);
+						slice2Tris.Add(slice2TriCounter * 3 - (3 - (j - 6)));
+					}
+					slice2TriCounter++;
 				} else {
-					for(int j = 0; j < triOrder.Length; j++) {
-						slice2Verts.Add(localPOIs[triOrder[j]]);
+					// Slice 2
+					for(int j = 0; j < 3; j++) {
+						slice2Verts.Add(localTriVerts[triOrder[j]]);
 						slice2Tris.Add(slice2TriCounter * 3 - (3 - j));
 					}
 					slice2TriCounter++;
-				}
-				// complex bisected trianges
+					// Slice 1
+					for(int j = 3; j < 6; j++) {
+						slice1Verts.Add(localTriVerts[triOrder[j]]);
+						slice1Tris.Add(slice1TriCounter * 3 - (3 - (j - 3)));
+					}
+					slice1TriCounter++;
+					for(int j = 6; j < 9; j++) {
+						slice1Verts.Add(localTriVerts[triOrder[j]]);
+						slice1Tris.Add(slice1TriCounter * 3 - (3 - (j - 6)));
+					}
+					slice1TriCounter++;
+				}			
 			}
 		}
 		// Build Meshes
