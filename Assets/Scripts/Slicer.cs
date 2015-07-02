@@ -4,6 +4,7 @@ using System.Collections.Generic;
 
 public class Slicer : MonoBehaviour {
 	public GameObject obj, slice;
+	public GameObject target;
 	private Transform objTransform;
 	private Mesh objMesh, slice1Mesh, slice2Mesh;
 	private Vector3 sliceStartPos, sliceEndPos;
@@ -12,13 +13,6 @@ public class Slicer : MonoBehaviour {
 		public readonly Vector3 point;
 		public readonly Vector3 normal;
 		public readonly float d;
-		// Plane given point and normal direction
-		public Plane(Vector3 planeP, Vector3 planeN) {
-			this.point = planeP;
-			this.normal = planeN;
-			this.d = 0;
-			this.d = PlaneDValue(planeP, planeN);
-		}
 		// Plane given 3 points
 		public Plane(Vector3 point1, Vector3 point2, Vector3 point3) {
 			this.point = point1;
@@ -29,7 +23,7 @@ public class Slicer : MonoBehaviour {
 		}
 		// Calculate "D" value for the eqation of a plane "Ax + By + Cz = D"
 		private float PlaneDValue(Vector3 planeP, Vector3 planeN) {
-			float d = (planeN.x * planeP.x) + (planeN.y * planeP.y) + (planeN.z * planeP.z);
+			float d = -1.0f * ((planeN.x * planeP.x) + (planeN.y * planeP.y) + (planeN.z * planeP.z));
 			return d;
 		}
 		// Calculate plane's normal given 3 points on the plane
@@ -58,7 +52,7 @@ public class Slicer : MonoBehaviour {
 			mousePos = new Vector3(Input.mousePosition.x, Input.mousePosition.y, 1.0f); // "z" value defines distance from camera
 			sliceEndPos = Camera.main.ScreenToWorldPoint(mousePos);
 			if(sliceStartPos != sliceEndPos) {
-				mousePos = new Vector3(Input.mousePosition.x, Input.mousePosition.y, 2.0f);
+				mousePos = new Vector3(Input.mousePosition.x, Input.mousePosition.y, 10.0f);
 				Vector3 point3 = Camera.main.ScreenToWorldPoint(mousePos);
 				Plane plane = new Plane(sliceStartPos, sliceEndPos, point3);
 				SliceMesh(plane, objMesh);
@@ -83,72 +77,76 @@ public class Slicer : MonoBehaviour {
 		int numOfTris = meshTris.Length / 3;
 		for(int i = 1; i <= numOfTris; i++) {
 			// local space vertices
-			Vector3 localVert1 = meshVerts[meshTris[i * 3 - 3]];
-			Vector3 localVert2 = meshVerts[meshTris[i * 3 - 2]];
-			Vector3 localVert3 = meshVerts[meshTris[i * 3 - 1]];
+			Vector3[] localVerts = {
+				meshVerts[meshTris[i * 3 - 3]],
+				meshVerts[meshTris[i * 3 - 2]],
+				meshVerts[meshTris[i * 3 - 1]]
+			};
 			// world space vertices
-			Vector3 worldVert1 = objTransform.TransformPoint(localVert1);
-			Vector3 worldVert2 = objTransform.TransformPoint(localVert2);
-			Vector3 worldVert3 = objTransform.TransformPoint(localVert3);
+			Vector3[] worldVerts = {
+				objTransform.TransformPoint(localVerts[0]),
+				objTransform.TransformPoint(localVerts[1]),
+				objTransform.TransformPoint(localVerts[2])
+			};
 			// Side test: (0) = intersecting plane; (+) = above plane; (-) = below plane;
-			float prod1 = Vector3.Dot(plane.normal, worldVert1 - plane.point);
-			float prod2 = Vector3.Dot(plane.normal, worldVert2 - plane.point);
-			float prod3 = Vector3.Dot(plane.normal, worldVert3 - plane.point);
+			float prod1 = Vector3.Dot(plane.normal, worldVerts[0] - plane.point);
+			float prod2 = Vector3.Dot(plane.normal, worldVerts[1] - plane.point);
+			float prod3 = Vector3.Dot(plane.normal, worldVerts[2] - plane.point);
 			// assign triangles that do not intersect plane
 			if(prod1 > 0 && prod2 > 0 && prod3 > 0) { // Slice 1
-				slice1Verts.Add(localVert1);
-				slice1Verts.Add(localVert2);
-				slice1Verts.Add(localVert3);
-				slice1Tris.Add(slice1TriCounter * 3 - 3);
-				slice1Tris.Add(slice1TriCounter * 3 - 2);
-				slice1Tris.Add(slice1TriCounter * 3 - 1);
+				for(int j = 0; j < localVerts.Length; j++) {
+					slice1Verts.Add(localVerts[j]);
+					slice1Tris.Add(slice1TriCounter * 3 - (3 - j));
+				}
 				slice1TriCounter++;
 			} else if(prod1 < 0 && prod2 < 0 && prod3 < 0) { // Slice 2
-				slice2Verts.Add(localVert1);
-				slice2Verts.Add(localVert2);
-				slice2Verts.Add(localVert3);
-				slice2Tris.Add(slice2TriCounter * 3 - 3);
-				slice2Tris.Add(slice2TriCounter * 3 - 2);
-				slice2Tris.Add(slice2TriCounter * 3 - 1);
+				for(int j = 0; j < localVerts.Length; j++) {
+					slice2Verts.Add(localVerts[j]);
+					slice2Tris.Add(slice2TriCounter * 3 - (3 - j));
+				}
 				slice2TriCounter++;
 			} else {
 				// Determine which line segment intersects plane
-				Vector3 commonPoint, p1, p2;
+				Vector3 p1, p2, worldP3;
+				int[] triOrder;
 				if(prod1 * prod2 > 0) {
-					commonPoint = worldVert3;
-					p1 = worldVert1;
-					p2 = worldVert2;
+					p1 = worldVerts[0];
+					p2 = worldVerts[1];
+					worldP3 = worldVerts[2];
+					triOrder = new int[] {0,1,2};
 				} else if(prod1 * prod3 > 0) {
-					commonPoint = worldVert2;
-					p1 = worldVert1;
-					p2 = worldVert3;
+					p1 = worldVerts[0];
+					p2 = worldVerts[2];
+					worldP3 = worldVerts[1];
+					triOrder = new int[] {0,2,1};
 				} else {
-					commonPoint = worldVert1;
-					p1 = worldVert2;
-					p2 = worldVert3;
+					p1 = worldVerts[1];
+					p2 = worldVerts[2];
+					worldP3 = worldVerts[0];
+					triOrder = new int[] {1,2,0};
 				}
 				// POIs
-				Vector3 poi1 = objTransform.InverseTransformPoint(VectorPlanePOI(commonPoint, commonPoint - p1, plane));
-				Vector3 poi2 = objTransform.InverseTransformPoint(VectorPlanePOI(commonPoint, commonPoint - p2, plane));
-				Vector3 p = objTransform.InverseTransformPoint(commonPoint);
-				//
-				if(Vector3.Dot(plane.normal, commonPoint - plane.point) > 0) {
-					slice1Verts.Add(poi1);
-					slice1Verts.Add(poi2);
-					slice1Verts.Add(p);
-					slice1Tris.Add(slice1TriCounter * 3 - 3);
-					slice1Tris.Add(slice1TriCounter * 3 - 2);
-					slice1Tris.Add(slice1TriCounter * 3 - 1);
+				// local space
+				Vector3[] localPOIs = {
+					objTransform.InverseTransformPoint(VectorPlanePOI(worldP3, (p1 - worldP3).normalized, plane)),
+					objTransform.InverseTransformPoint(VectorPlanePOI(worldP3, (p2 - worldP3).normalized, plane)),
+					objTransform.InverseTransformPoint(worldP3)
+				};
+				// simple bisected triangle
+				if(Vector3.Dot(plane.normal, worldP3 - plane.point) < 0) {
+					for(int j = 0; j < triOrder.Length; j++) {
+						slice1Verts.Add(localPOIs[triOrder[j]]);
+						slice1Tris.Add(slice1TriCounter * 3 - (3 - j));
+					}
 					slice1TriCounter++;
 				} else {
-					slice2Verts.Add(poi1);
-					slice2Verts.Add(poi2);
-					slice2Verts.Add(p);
-					slice2Tris.Add(slice2TriCounter * 3 - 3);
-					slice2Tris.Add(slice2TriCounter * 3 - 2);
-					slice2Tris.Add(slice2TriCounter * 3 - 1);
+					for(int j = 0; j < triOrder.Length; j++) {
+						slice2Verts.Add(localPOIs[triOrder[j]]);
+						slice2Tris.Add(slice2TriCounter * 3 - (3 - j));
+					}
 					slice2TriCounter++;
 				}
+				// complex bisected trianges
 			}
 		}
 		// Build Meshes
@@ -163,21 +161,22 @@ public class Slicer : MonoBehaviour {
 		GameObject slice1 = (GameObject)Instantiate(slice, objTransform.position, objTransform.rotation);
 		GameObject slice2 = (GameObject)Instantiate(slice, objTransform.position, objTransform.rotation);
 		slice1.transform.localScale = objTransform.localScale;
+		slice2.transform.localScale = objTransform.localScale;
 		slice1.GetComponent<MeshFilter>().mesh = slice1Mesh;
 		slice2.GetComponent<MeshFilter>().mesh = slice2Mesh;
+		// Delete original
 		Destroy(obj);
-		
 	}
 	
 	// Point of intersection between vector and a plane
 	Vector3 VectorPlanePOI(Vector3 point, Vector3 direction, Plane plane) {
 		// Plane: Ax + By + Cz = D
 		// Vector: r = (p.x, p.y, p.z) + t(d.x, d.y, d.z)
-		float A = plane.normal.x;
-		float B = plane.normal.y;
-		float C = plane.normal.z;
-		float D = plane.d;
-		float t = (-A*point.x - B*point.y - C*point.z - D) / (A*direction.x + B*direction.y + C*direction.z);
+		float a = plane.normal.x;
+		float b = plane.normal.y;
+		float c = plane.normal.z;
+		float d = plane.d;
+		float t = -1 * (a*point.x + b*point.y + c*point.z + d) / (a*direction.x + b*direction.y + c*direction.z);
 		float x = point.x + t*direction.x;		
 		float y = point.y + t*direction.y;		
 		float z = point.z + t*direction.z;
