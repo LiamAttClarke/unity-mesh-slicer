@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 
 public class Slicer : MonoBehaviour {
-	public GameObject obj, slice;
+	public GameObject obj;
 	private Transform objTransform;
-	private Mesh objMesh, slice1Mesh, slice2Mesh;
+	private Mesh objMesh;
 	private Vector3 sliceStartPos, sliceEndPos;
 	private bool isSlicing = false;
 	struct Plane {
@@ -204,24 +204,29 @@ public class Slicer : MonoBehaviour {
 		}
 		
 		// Build Meshes
-		slice1Mesh = new Mesh();
-		slice2Mesh = new Mesh();
-		slice1Mesh.vertices = slice1Verts.ToArray();
-		slice2Mesh.vertices = slice2Verts.ToArray();
-		slice1Mesh.triangles = slice1Tris.ToArray();
-		slice2Mesh.triangles = slice2Tris.ToArray();
-		slice1Mesh.uv = slice1UVs.ToArray();
-		slice2Mesh.uv = slice2UVs.ToArray();
-		slice1Mesh.RecalculateNormals();
-		slice2Mesh.RecalculateNormals();
-		GameObject slice1 = (GameObject)Instantiate(slice, objTransform.position, objTransform.rotation);
-		GameObject slice2 = (GameObject)Instantiate(slice, objTransform.position, objTransform.rotation);
-		slice1.transform.localScale = objTransform.localScale;
-		slice2.transform.localScale = objTransform.localScale;
-		slice1.GetComponent<MeshFilter>().mesh = slice1Mesh;
-		slice2.GetComponent<MeshFilter>().mesh = slice2Mesh;
+		Material objMaterial = obj.GetComponent<MeshRenderer>().material;
+		BuildSlice(slice1Verts.ToArray(), slice1Tris.ToArray(), slice1UVs.ToArray(), obj.transform, objMaterial);
+		BuildSlice(slice2Verts.ToArray(), slice2Tris.ToArray(), slice2UVs.ToArray(), obj.transform, objMaterial);
 		// Delete original
 		Destroy(obj);
+	}
+	
+	void BuildSlice(Vector3[] vertices, int[] triangles, Vector2[] uv, Transform objTransform, Material objMaterial) {
+		Mesh sliceMesh = new Mesh();
+		sliceMesh.vertices = vertices;
+		sliceMesh.triangles = triangles;
+		sliceMesh.uv = uv;
+		sliceMesh.RecalculateNormals();
+		// Instantiate new gameObject with components
+		GameObject slice = new GameObject("Slice");
+		slice.AddComponent<MeshFilter>();
+		slice.AddComponent<MeshRenderer>();
+		// Assign values to gameObject
+		slice.GetComponent<MeshFilter>().mesh = sliceMesh;
+		slice.GetComponent<MeshRenderer>().material = objMaterial; 
+		slice.transform.position = objTransform.position;
+		slice.transform.rotation = objTransform.rotation;
+		slice.transform.localScale = objTransform.localScale;
 	}
 	
 	// Point of intersection between vector and a plane
