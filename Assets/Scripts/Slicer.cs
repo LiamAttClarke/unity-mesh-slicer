@@ -57,15 +57,20 @@ public class Slicer : MonoBehaviour {
 		GameObject[] convexTargets = GameObject.FindGameObjectsWithTag("Sliceable-Convex");
 		GameObject[] nonConvexTargets = GameObject.FindGameObjectsWithTag("Sliceable");
 		foreach(GameObject target in convexTargets) {
-			if(true) {
+			if(IsIntersecting()) {
 				SliceMesh(target, plane, true);
 			}
 		}
 		foreach(GameObject target in nonConvexTargets) {
-			if(true) {
+			if(IsIntersecting()) {
 				SliceMesh(target, plane, false);
 			}
 		}
+	}
+	
+	bool IsIntersecting() {
+		// test plane intersection against bounding box of Renderer.Bounds
+		return true;
 	}
 	
 	// Slice mesh along plane intersection
@@ -232,9 +237,12 @@ public class Slicer : MonoBehaviour {
 		GameObject slice = new GameObject("Slice");
 		slice.AddComponent<MeshFilter>();
 		slice.AddComponent<MeshRenderer>();
+		slice.AddComponent<MeshCollider>();
+		//slice.AddComponent<Rigidbody>();
 		// Assign values to gameObject
 		slice.GetComponent<MeshFilter>().mesh = sliceMesh;
 		slice.GetComponent<MeshRenderer>().material = objMaterial; 
+		slice.GetComponent<MeshCollider>().sharedMesh = sliceMesh;
 		slice.transform.position = objTransform.position;
 		slice.transform.rotation = objTransform.rotation;
 		slice.transform.localScale = objTransform.localScale;
