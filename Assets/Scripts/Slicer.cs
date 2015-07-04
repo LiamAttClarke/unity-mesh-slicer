@@ -4,8 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 
 public class Slicer : MonoBehaviour {
-	public GameObject obj;
-	private Transform objTransform;
 	private Mesh objMesh;
 	private Vector3 sliceStartPos, sliceEndPos;
 	private bool isSlicing = false;
@@ -34,12 +32,6 @@ public class Slicer : MonoBehaviour {
 		}
 	}
 	
-	// Initialization
-	void Start () {
-		objMesh = obj.GetComponent<MeshFilter>().mesh;
-		objTransform = obj.transform;
-	}
-	
 	// Update is called once per frame
 	void Update () {
 		Vector3 mousePos;
@@ -55,20 +47,35 @@ public class Slicer : MonoBehaviour {
 				mousePos = new Vector3(Input.mousePosition.x, Input.mousePosition.y, 10.0f);
 				Vector3 point3 = Camera.main.ScreenToWorldPoint(mousePos);
 				Plane plane = new Plane(sliceStartPos, sliceEndPos, point3);
-				if(obj.tag == "Sliceable-Convex" || obj.tag == "Sliceable-NonConvex") {
-					SliceMesh(plane, objMesh);	
-				}
+				DetectIntersectingModels(plane);
 			}
 			isSlicing = false;
 		}
 	}
 	
+	void DetectIntersectingModels(Plane plane) {
+		GameObject[] convexTargets = GameObject.FindGameObjectsWithTag("Sliceable-Convex");
+		GameObject[] nonConvexTargets = GameObject.FindGameObjectsWithTag("Sliceable");
+		foreach(GameObject target in convexTargets) {
+			if(true) {
+				SliceMesh(target, plane, true);
+			}
+		}
+		foreach(GameObject target in nonConvexTargets) {
+			if(true) {
+				SliceMesh(target, plane, false);
+			}
+		}
+	}
+	
 	// Slice mesh along plane intersection
-	void SliceMesh(Plane plane, Mesh mesh) {
+	void SliceMesh(GameObject obj, Plane plane, bool isConvex) {
 		// original
-		Vector3[] meshVerts = mesh.vertices;
-		int[] meshTris = mesh.triangles;
-		Vector2[] meshUVs = mesh.uv;
+		Mesh objMesh = obj.GetComponent<MeshFilter>().mesh;
+		Transform objTransform = obj.transform;
+		Vector3[] meshVerts = objMesh.vertices;
+		int[] meshTris = objMesh.triangles;
+		Vector2[] meshUVs = objMesh.uv;
 		// sliced
 		List<Vector3> slice1Verts = new List<Vector3>();
 		List<Vector3> slice2Verts = new List<Vector3>();
@@ -147,7 +154,7 @@ public class Slicer : MonoBehaviour {
 					objTransform.InverseTransformPoint(VectorPlanePOI(p1, (p2 - p1).normalized, plane)),
 					objTransform.InverseTransformPoint(VectorPlanePOI(p1, (p3 - p1).normalized, plane))
 				};
-				if(obj.tag == "Sliceable-Convex") {
+				if(isConvex) {
 					POIs.Add(localTriVerts[3]);
 					POIs.Add(localTriVerts[4]);
 				}
@@ -198,25 +205,30 @@ public class Slicer : MonoBehaviour {
 			}
 		}
 		// Fill convex mesh
-		if(obj.tag == "Sliceable-Convex") {
+		if(isConvex) {
 			List<Vector3> filteredPOIs = POIs.Distinct().ToList();
 			// fill mesh
 		}
 		
 		// Build Meshes
 		Material objMaterial = obj.GetComponent<MeshRenderer>().material;
-		BuildSlice(slice1Verts.ToArray(), slice1Tris.ToArray(), slice1UVs.ToArray(), obj.transform, objMaterial);
-		BuildSlice(slice2Verts.ToArray(), slice2Tris.ToArray(), slice2UVs.ToArray(), obj.transform, objMaterial);
+		if(slice1Verts.Count > 0) {
+			BuildSlice(slice1Verts.ToArray(), slice1Tris.ToArray(), slice1UVs.ToArray(), obj.transform, objMaterial, isConvex);
+		}
+		if(slice2Verts.Count > 0) {
+			BuildSlice(slice2Verts.ToArray(), slice2Tris.ToArray(), slice2UVs.ToArray(), obj.transform, objMaterial, isConvex);
+		}
 		// Delete original
 		Destroy(obj);
 	}
 	
-	void BuildSlice(Vector3[] vertices, int[] triangles, Vector2[] uv, Transform objTransform, Material objMaterial) {
+	void BuildSlice(Vector3[] vertices, int[] triangles, Vector2[] uv, Transform objTransform, Material objMaterial, bool isConvex) {
 		Mesh sliceMesh = new Mesh();
 		sliceMesh.vertices = vertices;
 		sliceMesh.triangles = triangles;
 		sliceMesh.uv = uv;
 		sliceMesh.RecalculateNormals();
+		sliceMesh.RecalculateBounds();
 		// Instantiate new gameObject with components
 		GameObject slice = new GameObject("Slice");
 		slice.AddComponent<MeshFilter>();
@@ -227,6 +239,11 @@ public class Slicer : MonoBehaviour {
 		slice.transform.position = objTransform.position;
 		slice.transform.rotation = objTransform.rotation;
 		slice.transform.localScale = objTransform.localScale;
+		if(isConvex) {
+			slice.tag = "Sliceable-Convex";
+		} else {
+			slice.tag = "Sliceable";	
+		}
 	}
 	
 	// Point of intersection between vector and a plane
