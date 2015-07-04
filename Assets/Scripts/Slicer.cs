@@ -71,8 +71,9 @@ public class Slicer : MonoBehaviour {
 	// Slice mesh along plane intersection
 	void SliceMesh(GameObject obj, Plane plane, bool isConvex) {
 		// original
-		Mesh objMesh = obj.GetComponent<MeshFilter>().mesh;
 		Transform objTransform = obj.transform;
+		Mesh objMesh = obj.GetComponent<MeshFilter>().mesh;
+		Material objMaterial = obj.GetComponent<MeshRenderer>().material;
 		Vector3[] meshVerts = objMesh.vertices;
 		int[] meshTris = objMesh.triangles;
 		Vector2[] meshUVs = objMesh.uv;
@@ -164,20 +165,20 @@ public class Slicer : MonoBehaviour {
 					for(int j = 0; j < 3; j++) {
 						slice1Verts.Add(localTriVerts[triOrder[j]]);
 						slice1Tris.Add(slice1TriCounter * 3 - (3 - j));
-						slice1UVs.Add(triUVs[triOrder[j] / 3 + triOrder[j] % 3]);
+						slice1UVs.Add(triUVs[triOrder[j] / 3 + triOrder[j] % 3]); // PLACEHOLDER
 					}
 					slice1TriCounter++;
 					// Slice 2
 					for(int j = 3; j < 6; j++) {
 						slice2Verts.Add(localTriVerts[triOrder[j]]);
 						slice2Tris.Add(slice2TriCounter * 3 - (3 - j % 3));
-						slice2UVs.Add(triUVs[triOrder[j - 3] / 3 + triOrder[j - 3] % 3]);
+						slice2UVs.Add(triUVs[triOrder[j - 3] / 3 + triOrder[j - 3] % 3]); // PLACEHOLDER
 					}
 					slice2TriCounter++;
 					for(int j = 6; j < 9; j++) {
 						slice2Verts.Add(localTriVerts[triOrder[j]]);
 						slice2Tris.Add(slice2TriCounter * 3 - (3 - j % 3));
-						slice2UVs.Add(triUVs[triOrder[j - 6] / 3 + triOrder[j - 6] % 3]);
+						slice2UVs.Add(triUVs[triOrder[j - 6] / 3 + triOrder[j - 6] % 3]); // PLACEHOLDER
 					}
 					slice2TriCounter++;
 				} else {
@@ -185,20 +186,20 @@ public class Slicer : MonoBehaviour {
 					for(int j = 0; j < 3; j++) {
 						slice2Verts.Add(localTriVerts[triOrder[j]]);
 						slice2Tris.Add(slice2TriCounter * 3 - (3 - j));
-						slice2UVs.Add(triUVs[triOrder[j] / 3 + triOrder[j] % 3]);
+						slice2UVs.Add(triUVs[triOrder[j] / 3 + triOrder[j] % 3]); // PLACEHOLDER
 					}
 					slice2TriCounter++;
 					// Slice 1
 					for(int j = 3; j < 6; j++) {
 						slice1Verts.Add(localTriVerts[triOrder[j]]);
 						slice1Tris.Add(slice1TriCounter * 3 - (3 - j % 3));
-						slice1UVs.Add(triUVs[triOrder[j - 3] / 3 + triOrder[j - 3] % 3]);
+						slice1UVs.Add(triUVs[triOrder[j - 3] / 3 + triOrder[j - 3] % 3]); // PLACEHOLDER
 					}
 					slice1TriCounter++;
 					for(int j = 6; j < 9; j++) {
 						slice1Verts.Add(localTriVerts[triOrder[j]]);
 						slice1Tris.Add(slice1TriCounter * 3 - (3 - j % 3));
-						slice1UVs.Add(triUVs[triOrder[j - 6] / 3 + triOrder[j - 6] % 3]);
+						slice1UVs.Add(triUVs[triOrder[j - 6] / 3 + triOrder[j - 6] % 3]); // PLACEHOLDER
 					}
 					slice1TriCounter++;
 				}		
@@ -209,9 +210,7 @@ public class Slicer : MonoBehaviour {
 			List<Vector3> filteredPOIs = POIs.Distinct().ToList();
 			// fill mesh
 		}
-		
 		// Build Meshes
-		Material objMaterial = obj.GetComponent<MeshRenderer>().material;
 		if(slice1Verts.Count > 0) {
 			BuildSlice(slice1Verts.ToArray(), slice1Tris.ToArray(), slice1UVs.ToArray(), obj.transform, objMaterial, isConvex);
 		}
