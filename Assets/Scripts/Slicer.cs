@@ -154,52 +154,90 @@ public class Slicer : MonoBehaviour {
 					objTransform.InverseTransformPoint(VectorPlanePOI(p1, (p2 - p1).normalized, plane)),
 					objTransform.InverseTransformPoint(VectorPlanePOI(p1, (p3 - p1).normalized, plane))
 				};
-				// UV coordinates for POIs
-				float t1 = Vector2.Distance(localTriVerts[0], localTriVerts[4]) / Vector2.Distance(localTriVerts[0], localTriVerts[2]);
-				float t2 = Vector2.Distance(localTriVerts[0], localTriVerts[4]) / Vector2.Distance(localTriVerts[0], localTriVerts[2]);
-				Vector2 poi1UV = Vector2.Lerp(triUVs[0], triUVs[1], t1);
-				Vector2 poi2UV = Vector2.Lerp(triUVs[0], triUVs[2], t2);
 				// Save POIs for cross-sectional face
 				if(isConvex) {
 					POIs.Add(localTriVerts[3]);
 					POIs.Add(localTriVerts[4]);
 				}
+				// UV coordinates for POIs
+				float t1 = Vector3.Distance(localTriVerts[0], localTriVerts[3]) / Vector3.Distance(localTriVerts[0], localTriVerts[1]);
+				float t2 = Vector3.Distance(localTriVerts[0], localTriVerts[4]) / Vector3.Distance(localTriVerts[0], localTriVerts[2]);
+				Vector2 poi1UV = Vector2.Lerp(triUVs[0], triUVs[1], t1);
+				Vector2 poi2UV = Vector2.Lerp(triUVs[0], triUVs[2], t2);
+				Vector2 poi1UV2 = Vector2.Lerp(triUVs[0], triUVs[1], 1 - t1);
+				Vector2 poi2UV2 = Vector2.Lerp(triUVs[0], triUVs[2], 1 - t2);
 				// Add bisected triangle to slice respectively
 				if(plane.GetSide(p1) > 0) {
 					// Slice 1
 					for(int j = 0; j < 3; j++) {
 						slice1Verts.Add(localTriVerts[triOrder[j]]);
 						slice1Tris.Add(slice1Verts.Count - 1);
-						slice1UVs.Add(triUVs[triOrder[j] / 3 + triOrder[j] % 3]); // PLACEHOLDER
+						if(triOrder[j] == 3) {
+							slice1UVs.Add(poi1UV);
+						} else if(triOrder[j] == 4) {
+							slice1UVs.Add(poi2UV);
+						} else {
+							slice1UVs.Add(triUVs[triOrder[j]]);
+						}
 					}
 					// Slice 2
 					for(int j = 3; j < 6; j++) {
 						slice2Verts.Add(localTriVerts[triOrder[j]]);
 						slice2Tris.Add(slice2Verts.Count - 1);
-						slice2UVs.Add(triUVs[triOrder[j - 3] / 3 + triOrder[j - 3] % 3]); // PLACEHOLDER
+						if(triOrder[j] == 3) {
+							slice2UVs.Add(poi1UV2);
+						} else if(triOrder[j] == 4) {
+							slice2UVs.Add(poi2UV2);
+						} else {
+							slice2UVs.Add(triUVs[triOrder[j]]);
+						}
 					}
 					for(int j = 6; j < 9; j++) {
 						slice2Verts.Add(localTriVerts[triOrder[j]]);
 						slice2Tris.Add(slice2Verts.Count - 1);
-						slice2UVs.Add(triUVs[triOrder[j - 6] / 3 + triOrder[j - 6] % 3]); // PLACEHOLDER
+						if(triOrder[j] == 3) {
+							slice2UVs.Add(poi1UV2);
+						} else if(triOrder[j] == 4) {
+							slice2UVs.Add(poi2UV2);
+						} else {
+							slice2UVs.Add(triUVs[triOrder[j]]);
+						}
 					}
 				} else {
 					// Slice 2
 					for(int j = 0; j < 3; j++) {
 						slice2Verts.Add(localTriVerts[triOrder[j]]);
 						slice2Tris.Add(slice2Verts.Count - 1);
-						slice2UVs.Add(triUVs[triOrder[j] / 3 + triOrder[j] % 3]); // PLACEHOLDER
+						if(triOrder[j] == 3) {
+							slice2UVs.Add(poi1UV);
+						} else if(triOrder[j] == 4) {
+							slice2UVs.Add(poi2UV);
+						} else {
+							slice2UVs.Add(triUVs[triOrder[j]]);
+						}
 					}
 					// Slice 1
 					for(int j = 3; j < 6; j++) {
 						slice1Verts.Add(localTriVerts[triOrder[j]]);
 						slice1Tris.Add(slice1Verts.Count - 1);
-						slice1UVs.Add(triUVs[triOrder[j - 3] / 3 + triOrder[j - 3] % 3]); // PLACEHOLDER
+						if(triOrder[j] == 3) {
+							slice1UVs.Add(poi1UV2);
+						} else if(triOrder[j] == 4) {
+							slice1UVs.Add(poi2UV2);
+						} else {
+							slice1UVs.Add(triUVs[triOrder[j]]);
+						}
 					}
 					for(int j = 6; j < 9; j++) {
 						slice1Verts.Add(localTriVerts[triOrder[j]]);
 						slice1Tris.Add(slice1Verts.Count - 1);
-						slice1UVs.Add(triUVs[triOrder[j - 6] / 3 + triOrder[j - 6] % 3]); // PLACEHOLDER
+						if(triOrder[j] == 3) {
+							slice1UVs.Add(poi1UV2);
+						} else if(triOrder[j] == 4) {
+							slice1UVs.Add(poi2UV2);
+						} else {
+							slice1UVs.Add(triUVs[triOrder[j]]);
+						}
 					}
 				}		
 			}
