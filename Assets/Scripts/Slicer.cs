@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 public class Slicer : MonoBehaviour {
+	public GameObject target;
 	private Mesh objMesh;
 	private Vector3 sliceStartPos, sliceEndPos;
 	private bool isSlicing = false;
@@ -18,6 +19,9 @@ public class Slicer : MonoBehaviour {
 			this.d = 0;
 			this.normal = PlaneNormal(point1, point2, point3);
 			this.d = PlaneDValue(point1, this.normal);
+		}
+		public float GetSide(Vector3 point) {
+			return Vector3.Dot(this.normal, point - this.point);
 		}
 		// Calculate "D" value for the eqation of a plane "Ax + By + Cz = D"
 		private float PlaneDValue(Vector3 planeP, Vector3 planeN) {
@@ -57,20 +61,42 @@ public class Slicer : MonoBehaviour {
 		GameObject[] convexTargets = GameObject.FindGameObjectsWithTag("Sliceable-Convex");
 		GameObject[] nonConvexTargets = GameObject.FindGameObjectsWithTag("Sliceable");
 		foreach(GameObject target in convexTargets) {
-			if(IsIntersecting()) {
+			if(IsIntersecting(target, plane)) {
 				SliceMesh(target, plane, true);
 			}
 		}
 		foreach(GameObject target in nonConvexTargets) {
-			if(IsIntersecting()) {
+			if(IsIntersecting(target, plane)) {
 				SliceMesh(target, plane, false);
 			}
 		}
 	}
 	
-	bool IsIntersecting() {
+	bool IsIntersecting(GameObject obj, Plane plane) {
 		// test plane intersection against bounding box of Renderer.Bounds
-		return true;
+		Vector3 objMax = obj.GetComponent<MeshRenderer>().bounds.max;
+		Vector3[] boundingBoxVerts = {
+			objMax,
+			-objMax,
+			new Vector3(-objMax.x, -objMax.y, objMax.z),
+			new Vector3(objMax.x, -objMax.y, objMax.z),
+			new Vector3(objMax.x, -objMax.y, -objMax.z),
+			new Vector3(-objMax.x, objMax.y, -objMax.z),
+			new Vector3(-objMax.x, objMax.y, objMax.z),
+			new Vector3(objMax.x, objMax.y, -objMax.z)
+		};
+		foreach(Vector3 point in boundingBoxVerts) {
+			Instantiate(target, point, Quaternion.identity);
+		}
+		float prevProduct = plane.GetSide(boundingBoxVerts[0]);
+		for(int i = 1; i < boundingBoxVerts.Length; i++) {
+			float currentProduct = plane.GetSide(boundingBoxVerts[i]);
+			if (prevProduct * currentProduct < 0) {
+				return true;
+			}
+			prevProduct = plane.GetSide(boundingBoxVerts[i]);
+		}
+		return false;
 	}
 	
 	// Slice mesh along plane intersection
@@ -114,9 +140,9 @@ public class Slicer : MonoBehaviour {
 				meshUVs[meshTris[i * 3 - 1]]
 			};
 			// Side test: (0) = intersecting plane; (+) = above plane; (-) = below plane;
-			float prod1 = Vector3.Dot(plane.normal, worldVerts[0] - plane.point);
-			float prod2 = Vector3.Dot(plane.normal, worldVerts[1] - plane.point);
-			float prod3 = Vector3.Dot(plane.normal, worldVerts[2] - plane.point);
+			float prod1 = plane.GetSide(worldVerts[0]);
+			float prod2 = plane.GetSide(worldVerts[1]);
+			float prod3 = plane.GetSide(worldVerts[2]);
 			// assign triangles that do not intersect plane
 			if(prod1 > 0 && prod2 > 0 && prod3 > 0) { // Slice 1
 				for(int j = 0; j < localVerts.Length; j++) {
@@ -165,7 +191,7 @@ public class Slicer : MonoBehaviour {
 					POIs.Add(localTriVerts[4]);
 				}
 				// Add bisected triangle to slice respectively
-				if(Vector3.Dot(plane.normal, p1 - plane.point) > 0) {
+				if(plane.GetSide(p1) > 0) {
 					// Slice 1
 					for(int j = 0; j < 3; j++) {
 						slice1Verts.Add(localTriVerts[triOrder[j]]);
