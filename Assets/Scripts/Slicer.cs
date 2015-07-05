@@ -134,17 +134,17 @@ public class Slicer : MonoBehaviour {
 					p1 = worldVerts[2];
 					p2 = worldVerts[0];
 					p3 = worldVerts[1];
-					triOrder = new int[] {4,0,3, 2,4,1, 1,4,3};
+					triOrder = new int[] {0,3,4, 1,2,4, 4,3,1}; // CW
 				} else if(prod1 * prod3 > 0) {
 					p1 = worldVerts[1];
 					p2 = worldVerts[0];
 					p3 = worldVerts[2];
-					triOrder = new int[] {3,0,4, 2,1,4, 4,1,3};
+					triOrder = new int[] {4,3,0, 4,2,1, 1,3,4}; // CCW
 				} else {
 					p1 = worldVerts[0];
 					p2 = worldVerts[1];
 					p3 = worldVerts[2];
-					triOrder = new int[] {0,3,4, 4,1,2, 4,3,1};
+					triOrder = new int[] {0,3,4, 1,2,4, 4,3,1}; // CW
 				}
 				// bisected triangle vertices - local space
 				Vector3[] localTriVerts = {
