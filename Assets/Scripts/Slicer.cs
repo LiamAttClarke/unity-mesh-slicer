@@ -1,37 +1,40 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 
 public class Slicer : MonoBehaviour {
-	private Mesh objMesh;
 	private Vector3 sliceStartPos, sliceEndPos;
 	private bool isSlicing = false;
-	struct Plane {
+	struct CustomPlane {
 		public readonly Vector3 point;
 		public readonly Vector3 normal;
 		public readonly float d;
 		// Plane given 3 points
-		public Plane(Vector3 point1, Vector3 point2, Vector3 point3) {
+		public CustomPlane(Vector3 point1, Vector3 point2, Vector3 point3) {
 			this.point = point1;
 			this.normal = Vector3.zero;
 			this.d = 0;
 			this.normal = PlaneNormal(point1, point2, point3);
-			this.d = PlaneDValue(point1, this.normal);
+			this.d = PlaneDConstant(point1, this.normal);
 		}
 		public float GetSide(Vector3 point) {
 			return Vector3.Dot(this.normal, point - this.point);
 		}
 		// Calculate "D" value for the eqation of a plane "Ax + By + Cz = D"
-		private float PlaneDValue(Vector3 planeP, Vector3 planeN) {
-			float d = -1.0f * ((planeN.x * planeP.x) + (planeN.y * planeP.y) + (planeN.z * planeP.z));
-			return d;
+		private float PlaneDConstant(Vector3 planeP, Vector3 planeN) {
+			return -1.0f * ((planeN.x * planeP.x) + (planeN.y * planeP.y) + (planeN.z * planeP.z));
 		}
 		// Calculate plane's normal given 3 points on the plane
 		private Vector3 PlaneNormal(Vector3 point1, Vector3 point2, Vector3 point3) {
-			Vector3 dir1 = (point2 - point1).normalized;
-			Vector3 dir2 = (point3 - point1).normalized;
-			return Vector3.Cross(dir2, dir1);
+			Vector3 vec1 = (point2 - point1).normalized;
+			Vector3 vec2 = (point3 - point1).normalized;
+			return Vector3.Cross(vec1, vec2);
+		}
+	}
+	
+	struct Triangle {
+		public Triangle(Vector3 p0, Vector3 p1, Vector3 p2) {
+			
 		}
 	}
 	
@@ -49,38 +52,41 @@ public class Slicer : MonoBehaviour {
 			if(sliceStartPos != sliceEndPos) {
 				mousePos = new Vector3(Input.mousePosition.x, Input.mousePosition.y, 10.0f);
 				Vector3 point3 = Camera.main.ScreenToWorldPoint(mousePos);
-				Plane plane = new Plane(sliceStartPos, sliceEndPos, point3);
+				CustomPlane plane = new CustomPlane(sliceStartPos, sliceEndPos, point3);
 				Slice(plane);
 			}
 			isSlicing = false;
 		}
 	}
 	
-	void Slice(Plane plane) {
+	// Detect & slice "sliceable" GameObjects whose bounding box intersects slicing plane
+	void Slice(CustomPlane plane) {
 		GameObject[] convexTargets = GameObject.FindGameObjectsWithTag("Sliceable-Convex");
 		GameObject[] nonConvexTargets = GameObject.FindGameObjectsWithTag("Sliceable");
 		foreach(GameObject target in convexTargets) {
-			if(IsIntersecting(target, plane)) {
+			if(IsPlaneIntersecting(target, plane)) {
 				SliceMesh(target, plane, true);
 			}
 		}
 		foreach(GameObject target in nonConvexTargets) {
-			if(IsIntersecting(target, plane)) {
+			if(IsPlaneIntersecting(target, plane)) {
 				SliceMesh(target, plane, false);
 			}
 		}
 	}
 	
 	// Slice mesh along plane intersection
-	void SliceMesh(GameObject obj, Plane plane, bool isConvex) {
-		// original
+	void SliceMesh(GameObject obj, CustomPlane plane, bool isConvex) {
+		
+		// original GameObject data
 		Transform objTransform = obj.transform;
 		Mesh objMesh = obj.GetComponent<MeshFilter>().mesh;
 		Material objMaterial = obj.GetComponent<MeshRenderer>().material;
 		Vector3[] meshVerts = objMesh.vertices;
 		int[] meshTris = objMesh.triangles;
 		Vector2[] meshUVs = objMesh.uv;
-		// sliced
+		
+		// Slice mesh data
 		List<Vector3> slice1Verts = new List<Vector3>();
 		List<Vector3> slice2Verts = new List<Vector3>();
 		List<int> slice1Tris = new List<int>();
@@ -92,23 +98,17 @@ public class Slicer : MonoBehaviour {
 		List<Vector3> POIs = new List<Vector3>();
 		// Loop through triangles
 		for(int i = 1; i <= numOfTris; i++) {
-			// local space vertices
-			Vector3[] localVerts = {
-				meshVerts[meshTris[i * 3 - 3]],
-				meshVerts[meshTris[i * 3 - 2]],
-				meshVerts[meshTris[i * 3 - 1]]
-			};
-			// world space vertices
-			Vector3[] worldVerts = {
-				objTransform.TransformPoint(localVerts[0]),
-				objTransform.TransformPoint(localVerts[1]),
-				objTransform.TransformPoint(localVerts[2])
-			};
-			Vector2[] triUVs = {
-				meshUVs[meshTris[i * 3 - 3]],
-				meshUVs[meshTris[i * 3 - 2]],
-				meshUVs[meshTris[i * 3 - 1]]
-			};
+			
+			// Define triangle
+			Vector3[] localVerts = new Vector3[3];
+			Vector3[] worldVerts = new Vector3[3];
+			Vector2[] triUVs = new Vector2[3];
+			for(int j = 0; j < 3; j++) {
+				localVerts[j] = meshVerts[meshTris[i * 3 - (3 - j)]]; 			// local model space vertices
+				worldVerts[j] = objTransform.TransformPoint(localVerts[j]); 	// world space vertices
+				triUVs[j] = meshUVs[meshTris[i * 3 - (3 - j)]]; 				// original uv coordinates
+			}
+
 			// Side test: (0) = intersecting plane; (+) = above plane; (-) = below plane;
 			float prod1 = plane.GetSide(worldVerts[0]);
 			float prod2 = plane.GetSide(worldVerts[1]);
@@ -244,7 +244,6 @@ public class Slicer : MonoBehaviour {
 		}
 		// Fill convex mesh
 		if(isConvex) {
-			List<Vector3> filteredPOIs = POIs.Distinct().ToList();
 			// fill mesh
 		}
 		// Build Meshes
@@ -286,7 +285,7 @@ public class Slicer : MonoBehaviour {
 	}
 
 	// Test intersection of plane and object's bounding box
-	bool IsIntersecting(GameObject obj, Plane plane) {
+	bool IsPlaneIntersecting(GameObject obj, CustomPlane plane) {
 		// test plane intersection against bounding box of Renderer.Bounds
 		Vector3 objMax = obj.GetComponent<MeshRenderer>().bounds.max;
 		Vector3 objMin = obj.GetComponent<MeshRenderer>().bounds.min;
@@ -312,7 +311,7 @@ public class Slicer : MonoBehaviour {
 	}
 	
 	// Point of intersection between vector and a plane
-	Vector3 VectorPlanePOI(Vector3 point, Vector3 direction, Plane plane) {
+	Vector3 VectorPlanePOI(Vector3 point, Vector3 direction, CustomPlane plane) {
 		// Plane: Ax + By + Cz = D
 		// Vector: r = (p.x, p.y, p.z) + t(d.x, d.y, d.z)
 		float a = plane.normal.x;
