@@ -89,21 +89,22 @@ public class Slicer : MonoBehaviour {
 		List<Vector2> slice1UVs = new List<Vector2>();
 		List<Vector2> slice2UVs = new List<Vector2>();
 		
-		int numOfTris = meshTris.Length / 3;
 		List<Vector3> POIs = new List<Vector3>();
 		// Loop through triangles
-		for(int i = 1; i <= numOfTris; i++) {
+		for(int i = 1; i <= meshTris.Length / 3; i++) {
 			
 			// Define triangle
 			Vector3[] localTriVerts = new Vector3[3];
 			Vector3[] worldTriVerts = new Vector3[3];
 			Vector2[] triUVs = new Vector2[3];
-			int[] vertOrder = new int[3];
+			//int[] vertOrder = new int[3];
 			for(int j = 0; j < 3; j++) {
-				localTriVerts[j] = meshVerts[meshTris[i * 3 - (3 - j)]]; 			// local model space vertices
+				//int indexor = i + j;
+				int indexor = i * 3 - (3 - j);
+				localTriVerts[j] = meshVerts[meshTris[indexor]]; 					// local model space vertices
 				worldTriVerts[j] = objTransform.TransformPoint(localTriVerts[j]); 	// world space vertices
-				triUVs[j] = meshUVs[meshTris[i * 3 - (3 - j)]]; 					// original uv coordinates
-				vertOrder[j] = meshTris[i * 3 - (3 - j)];
+				triUVs[j] = meshUVs[meshTris[indexor]]; 							// original uv coordinates
+				//vertOrder[j] = meshTris[indexor];
 			}
 
 			// Side test: (0) = intersecting plane; (+) = above plane; (-) = below plane;
@@ -157,11 +158,11 @@ public class Slicer : MonoBehaviour {
 				
 				// bisected triangle vertices (local space)
 				Vector3[] bisectedTriVerts = {
-					objTransform.InverseTransformPoint(p1),
-					objTransform.InverseTransformPoint(p2),
+					objTransform.InverseTransformPoint(p1), //singleton
+					objTransform.InverseTransformPoint(p2), // replace with precalculated localverts
 					objTransform.InverseTransformPoint(p3),
-					objTransform.InverseTransformPoint(VectorPlanePOI(p1, (p2 - p1).normalized, plane)),
-					objTransform.InverseTransformPoint(VectorPlanePOI(p1, (p3 - p1).normalized, plane))
+					objTransform.InverseTransformPoint(VectorPlanePOI(p1, (p2 - p1).normalized, plane)), // 3
+					objTransform.InverseTransformPoint(VectorPlanePOI(p1, (p3 - p1).normalized, plane)) // 4
 				};
 				
 				// UV coordinates
@@ -171,8 +172,8 @@ public class Slicer : MonoBehaviour {
 					uv1,
 					uv2,
 					uv3,
-					Vector2.Lerp(triUVs[0], triUVs[1], t1),
-					Vector2.Lerp(triUVs[0], triUVs[2], t2)
+					Vector2.Lerp(uv1, uv2, t1),
+					Vector2.Lerp(uv1, uv3, t2)
 				};
 				
 				// Add bisected triangle to slice respectively
