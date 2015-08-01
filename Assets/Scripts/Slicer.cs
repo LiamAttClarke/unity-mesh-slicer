@@ -3,8 +3,11 @@ using System.Collections;
 using System.Collections.Generic;
 
 public class Slicer : MonoBehaviour {
+	public bool fillConvexMesh = true;
 	private Vector3 sliceStartPos, sliceEndPos;
 	private bool isSlicing = false;
+	private int[] vertOrderCW = {0,3,4, 1,2,4, 4,3,1};
+	private int[] vertOrderCCW = {4,3,0, 4,2,1, 1,3,4};
 	struct CustomPlane {
 		public readonly Vector3 point;
 		public readonly Vector3 normal;
@@ -80,6 +83,7 @@ public class Slicer : MonoBehaviour {
 		Vector3[] meshVerts = objMesh.vertices;
 		int[] meshTris = objMesh.triangles;
 		Vector2[] meshUVs = objMesh.uv;
+		string objName = obj.name;
 		
 		// Slice mesh data
 		List<Vector3> slice1Verts = new List<Vector3>();
@@ -88,156 +92,149 @@ public class Slicer : MonoBehaviour {
 		List<int> slice2Tris = new List<int>();
 		List<Vector2> slice1UVs = new List<Vector2>();
 		List<Vector2> slice2UVs = new List<Vector2>();
-		
 		List<Vector3> POIs = new List<Vector3>();
+		
 		// Loop through triangles
-		for(int i = 1; i <= meshTris.Length / 3; i++) {
+		for(int i = 0; i < meshTris.Length / 3; i++) {
 			
-			// Define triangle
-			Vector3[] localTriVerts = new Vector3[3];
-			Vector3[] worldTriVerts = new Vector3[3];
+			// Define triangle 
+			Vector3[] triVertsLocal = new Vector3[3];
+			Vector3[] triVertsWorld = new Vector3[3];
 			Vector2[] triUVs = new Vector2[3];
-			//int[] vertOrder = new int[3];
 			for(int j = 0; j < 3; j++) {
-				//int indexor = i + j;
-				int indexor = i * 3 - (3 - j);
-				localTriVerts[j] = meshVerts[meshTris[indexor]]; 					// local model space vertices
-				worldTriVerts[j] = objTransform.TransformPoint(localTriVerts[j]); 	// world space vertices
-				triUVs[j] = meshUVs[meshTris[indexor]]; 							// original uv coordinates
-				//vertOrder[j] = meshTris[indexor];
+				int meshIndexor = (i + 1) * 3 - (3 - j);
+				triVertsLocal[j] = meshVerts[meshTris[meshIndexor]]; 					// local model space vertices
+				triVertsWorld[j] = objTransform.TransformPoint(triVertsLocal[j]); 	// world space vertices
+				triUVs[j] = meshUVs[meshTris[meshIndexor]]; 							// original uv coordinates
 			}
 
 			// Side test: (0) = intersecting plane; (+) = above plane; (-) = below plane;
-			float vert1Side = plane.GetSide(worldTriVerts[0]);
-			float vert2Side = plane.GetSide(worldTriVerts[1]);
-			float vert3Side = plane.GetSide(worldTriVerts[2]);
+			float vert1Side = plane.GetSide(triVertsWorld[0]);
+			float vert2Side = plane.GetSide(triVertsWorld[1]);
+			float vert3Side = plane.GetSide(triVertsWorld[2]);
 			
 			// assign triangles that do not intersect plane
 			if(vert1Side > 0 && vert2Side > 0 && vert3Side > 0) { 			// Slice 1
-				for(int j = 0; j < localTriVerts.Length; j++) {
-					slice1Verts.Add(localTriVerts[j]);
+				for(int j = 0; j < triVertsLocal.Length; j++) {
+					slice1Verts.Add(triVertsLocal[j]);
 					slice1Tris.Add(slice1Verts.Count - 1);
 					slice1UVs.Add(triUVs[j]);
 				}
 			} else if(vert1Side < 0 && vert2Side < 0 && vert3Side < 0) {	// Slice 2
-				for(int j = 0; j < localTriVerts.Length; j++) {
-					slice2Verts.Add(localTriVerts[j]);
+				for(int j = 0; j < triVertsLocal.Length; j++) {
+					slice2Verts.Add(triVertsLocal[j]);
 					slice2Tris.Add(slice2Verts.Count - 1);
 					slice2UVs.Add(triUVs[j]);
 				}
 			} else {														// Intersecting Triangles
-				// Determine which line segment intersects plane
-				Vector3 p1, p2, p3;
-				Vector2 uv1, uv2, uv3;
-				int[] triOrder; // triangle vertex-order CW vs. CCW
+				Vector3[] slicedTriVerts = new Vector3[5];
+				Vector2[] slicedTriUVs = new Vector2[5];
+				Vector3[] triVertsWorld2 = new Vector3[3];
+				int[] vertOrder; // triangle vertex-order CW vs. CCW
 				if(vert1Side * vert2Side > 0) {
-					p1 = worldTriVerts[2];
-					p2 = worldTriVerts[0];
-					p3 = worldTriVerts[1];
-					uv1 = triUVs[2];
-					uv2 = triUVs[0];
-					uv3 = triUVs[1];
-					triOrder = new int[] {0,3,4, 1,2,4, 4,3,1}; // CW
+					int[] triOrder = {2,0,1};
+					for(int j = 0; j < triOrder.Length; j++) {
+						slicedTriVerts[j] = triVertsLocal[triOrder[j]];
+						slicedTriUVs[j] = triUVs[triOrder[j]];
+						triVertsWorld2[j] = triVertsWorld[triOrder[j]];
+					}
+					vertOrder = vertOrderCW;					
 				} else if(vert1Side * vert3Side > 0) {
-					p1 = worldTriVerts[1];
-					p2 = worldTriVerts[0];
-					p3 = worldTriVerts[2];
-					uv1 = triUVs[1];
-					uv2 = triUVs[0];
-					uv3 = triUVs[2];
-					triOrder = new int[] {4,3,0, 4,2,1, 1,3,4}; // CCW
+					int[] triOrder = {1,0,2};
+					for(int j = 0; j < triOrder.Length; j++) {
+						slicedTriVerts[j] = triVertsLocal[triOrder[j]];
+						slicedTriUVs[j] = triUVs[triOrder[j]];
+						triVertsWorld2[j] = triVertsWorld[triOrder[j]];
+					}
+					vertOrder = vertOrderCCW;
 				} else {
-					p1 = worldTriVerts[0];
-					p2 = worldTriVerts[1];
-					p3 = worldTriVerts[2];
-					uv1 = triUVs[0];
-					uv2 = triUVs[1];
-					uv3 = triUVs[2];
-					triOrder = new int[] {0,3,4, 1,2,4, 4,3,1}; // CW
+					int[] triOrder = {0,1,2};
+					for(int j = 0; j < triOrder.Length; j++) {
+						slicedTriVerts[j] = triVertsLocal[triOrder[j]];
+						slicedTriUVs[j] = triUVs[triOrder[j]];
+						triVertsWorld2[j] = triVertsWorld[triOrder[j]];
+					}
+					vertOrder = vertOrderCW;
 				}
 				
-				// bisected triangle vertices (local space)
-				Vector3[] bisectedTriVerts = {
-					objTransform.InverseTransformPoint(p1), //singleton
-					objTransform.InverseTransformPoint(p2), // replace with precalculated localverts
-					objTransform.InverseTransformPoint(p3),
-					objTransform.InverseTransformPoint(VectorPlanePOI(p1, (p2 - p1).normalized, plane)), // 3
-					objTransform.InverseTransformPoint(VectorPlanePOI(p1, (p3 - p1).normalized, plane)) // 4
-				};
+				// Points of Intersection
+				Vector3 poi1 = VectorPlanePOI(triVertsWorld2[0], (triVertsWorld2[1] - triVertsWorld2[0]).normalized, plane);
+				Vector3 poi2 = VectorPlanePOI(triVertsWorld2[0], (triVertsWorld2[2] - triVertsWorld2[0]).normalized, plane);
+				slicedTriVerts[3] = objTransform.InverseTransformPoint(poi1);
+				slicedTriVerts[4] = objTransform.InverseTransformPoint(poi2);
 				
-				// UV coordinates
-				float t1 = Vector3.Distance(bisectedTriVerts[0], bisectedTriVerts[3]) / Vector3.Distance(bisectedTriVerts[0], bisectedTriVerts[1]);
-				float t2 = Vector3.Distance(bisectedTriVerts[0], bisectedTriVerts[4]) / Vector3.Distance(bisectedTriVerts[0], bisectedTriVerts[2]);
-				Vector2[] bisectedTriUVs = {
-					uv1,
-					uv2,
-					uv3,
-					Vector2.Lerp(uv1, uv2, t1),
-					Vector2.Lerp(uv1, uv3, t2)
-				};
-				
-				// Add bisected triangle to slice respectively
-				if(plane.GetSide(p1) > 0) {
-					// Slice 1
-					for(int j = 0; j < 3; j++) {
-						slice1Verts.Add(bisectedTriVerts[triOrder[j]]);
-						slice1Tris.Add(slice1Verts.Count - 1);
-						slice1UVs.Add(bisectedTriUVs[triOrder[j]]);
-					}
-					// Slice 2
-					for(int j = 3; j < 6; j++) {
-						slice2Verts.Add(bisectedTriVerts[triOrder[j]]);
-						slice2Tris.Add(slice2Verts.Count - 1);
-						slice2UVs.Add(bisectedTriUVs[triOrder[j]]);
-					}
-					for(int j = 6; j < 9; j++) {
-						slice2Verts.Add(bisectedTriVerts[triOrder[j]]);
-						slice2Tris.Add(slice2Verts.Count - 1);
-						slice2UVs.Add(bisectedTriUVs[triOrder[j]]);
-					}
-				} else {
-					// Slice 2
-					for(int j = 0; j < 3; j++) {
-						slice2Verts.Add(bisectedTriVerts[triOrder[j]]);
-						slice2Tris.Add(slice2Verts.Count - 1);
-						slice2UVs.Add(bisectedTriUVs[triOrder[j]]);
-					}
-					// Slice 1
-					for(int j = 3; j < 6; j++) {
-						slice1Verts.Add(bisectedTriVerts[triOrder[j]]);
-						slice1Tris.Add(slice1Verts.Count - 1);
-						slice1UVs.Add(bisectedTriUVs[triOrder[j]]);
-					}
-					for(int j = 6; j < 9; j++) {
-						slice1Verts.Add(bisectedTriVerts[triOrder[j]]);
-						slice1Tris.Add(slice1Verts.Count - 1);
-						slice1UVs.Add(bisectedTriUVs[triOrder[j]]);
-					}
-				}
+				// POI UVs
+				float t1 = Vector3.Distance(slicedTriVerts[0], slicedTriVerts[3]) / Vector3.Distance(slicedTriVerts[0], slicedTriVerts[1]);
+				float t2 = Vector3.Distance(slicedTriVerts[0], slicedTriVerts[4]) / Vector3.Distance(slicedTriVerts[0], slicedTriVerts[2]);
+				slicedTriUVs[3] = Vector2.Lerp(slicedTriUVs[0], slicedTriUVs[1], t1);
+				slicedTriUVs[4] = Vector2.Lerp(slicedTriUVs[0], slicedTriUVs[2], t2);
 				
 				// Save POIs for cross-sectional face
-				if(isConvex) {
-					POIs.Add(bisectedTriVerts[3]);
-					POIs.Add(bisectedTriVerts[4]);
-				}	
+				if(isConvex && fillConvexMesh) {
+					POIs.Add(slicedTriVerts[3]);
+					POIs.Add(slicedTriVerts[4]);
+				}
+				
+				// Add bisected triangle to slice respectively
+				if(plane.GetSide(triVertsWorld2[0]) > 0) {
+					// Slice 1
+					for(int j = 0; j < 3; j++) {
+						slice1Verts.Add(slicedTriVerts[vertOrder[j]]);
+						slice1Tris.Add(slice1Verts.Count - 1);
+						slice1UVs.Add(slicedTriUVs[vertOrder[j]]);
+					}
+					// Slice 2
+					for(int j = 3; j < 6; j++) {
+						slice2Verts.Add(slicedTriVerts[vertOrder[j]]);
+						slice2Tris.Add(slice2Verts.Count - 1);
+						slice2UVs.Add(slicedTriUVs[vertOrder[j]]);
+					}
+					for(int j = 6; j < 9; j++) {
+						slice2Verts.Add(slicedTriVerts[vertOrder[j]]);
+						slice2Tris.Add(slice2Verts.Count - 1);
+						slice2UVs.Add(slicedTriUVs[vertOrder[j]]);
+					}
+				} else {
+					// Slice 2
+					for(int j = 0; j < 3; j++) {
+						slice2Verts.Add(slicedTriVerts[vertOrder[j]]);
+						slice2Tris.Add(slice2Verts.Count - 1);
+						slice2UVs.Add(slicedTriUVs[vertOrder[j]]);
+					}
+					// Slice 1
+					for(int j = 3; j < 6; j++) {
+						slice1Verts.Add(slicedTriVerts[vertOrder[j]]);
+						slice1Tris.Add(slice1Verts.Count - 1);
+						slice1UVs.Add(slicedTriUVs[vertOrder[j]]);
+					}
+					for(int j = 6; j < 9; j++) {
+						slice1Verts.Add(slicedTriVerts[vertOrder[j]]);
+						slice1Tris.Add(slice1Verts.Count - 1);
+						slice1UVs.Add(slicedTriUVs[vertOrder[j]]);
+					}
+				}
 			}
 		}
 		// Fill convex mesh
-		if(isConvex) {
+		/*if(isConvex && fillConvexMesh) {
 			// fill mesh
-		}
+			for(int i = 0; i < POIs.Count; i++) {
+				slice1Verts.Add(POIs[i]);
+				slice2Verts.Add(POIs[i]);
+			}
+		}*/
 		// Build Meshes
 		if(slice1Verts.Count > 0) {
-			BuildSlice(slice1Verts.ToArray(), slice1Tris.ToArray(), slice1UVs.ToArray(), obj.transform, objMaterial, isConvex);
+			BuildSlice(objName, slice1Verts.ToArray(), slice1Tris.ToArray(), slice1UVs.ToArray(), obj.transform, objMaterial, isConvex);
 		}
 		if(slice2Verts.Count > 0) {
-			BuildSlice(slice2Verts.ToArray(), slice2Tris.ToArray(), slice2UVs.ToArray(), obj.transform, objMaterial, isConvex);
+			BuildSlice(objName, slice2Verts.ToArray(), slice2Tris.ToArray(), slice2UVs.ToArray(), obj.transform, objMaterial, isConvex);
 		}
 		// Delete original
 		Destroy(obj);
 	}
 	
-	void BuildSlice(Vector3[] vertices, int[] triangles, Vector2[] uv, Transform objTransform, Material objMaterial, bool isConvex) {
+	void BuildSlice(string name, Vector3[] vertices, int[] triangles, Vector2[] uv, Transform objTransform, Material objMaterial, bool isConvex) {
 		Mesh sliceMesh = new Mesh();
 		sliceMesh.vertices = vertices;
 		sliceMesh.triangles = triangles;
@@ -245,7 +242,7 @@ public class Slicer : MonoBehaviour {
 		sliceMesh.RecalculateNormals();
 		sliceMesh.RecalculateBounds();
 		// Instantiate new gameObject with components
-		GameObject slice = new GameObject("Slice");
+		GameObject slice = new GameObject(name + "-Slice");
 		slice.AddComponent<MeshFilter>();
 		slice.AddComponent<MeshRenderer>();
 		slice.AddComponent<MeshCollider>();
