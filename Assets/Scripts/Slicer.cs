@@ -8,6 +8,10 @@ public class Slicer : MonoBehaviour {
 	private bool isSlicing = false;
 	private int[] vertOrderCW = {0,3,4, 1,2,4, 4,3,1};
 	private int[] vertOrderCCW = {4,3,0, 4,2,1, 1,3,4};
+	List<Vector3> slice1Verts, slice2Verts;
+	List<int> slice1Tris, slice2Tris;
+	List<Vector2> slice1UVs, slice2UVs;
+
 	struct CustomPlane {
 		public readonly Vector3 point;
 		public readonly Vector3 normal;
@@ -24,15 +28,32 @@ public class Slicer : MonoBehaviour {
 		public float GetSide(Vector3 point) {
 			return Vector3.Dot(this.normal, point - this.point);
 		}
-		// Calculate "D" value for the eqation of a plane "Ax + By + Cz = D"
+		// Calculate "D" constant for the eqation of a plane (Ax + By + Cz = D)
 		private float PlaneDConstant(Vector3 planeP, Vector3 planeN) {
 			return -1.0f * ((planeN.x * planeP.x) + (planeN.y * planeP.y) + (planeN.z * planeP.z));
 		}
 		// Calculate plane's normal given 3 points on the plane
 		private Vector3 PlaneNormal(Vector3 point1, Vector3 point2, Vector3 point3) {
-			Vector3 vec1 = (point2 - point1).normalized;
-			Vector3 vec2 = (point3 - point1).normalized;
-			return Vector3.Cross(vec1, vec2);
+			Vector3 vect1 = (point2 - point1);
+			Vector3 vect2 = (point3 - point1);
+			return Vector3.Cross(vect1, vect2).normalized;
+		}
+	}
+	
+	struct LineSegment {
+		public readonly Vector3 localP1;
+		public readonly Vector3 localP2;
+		public readonly Vector3 localVect;
+		public readonly Vector3 worldP1;
+		public readonly Vector3 worldP2;
+		public readonly Vector3 worldVect;
+		public LineSegment(Vector3 localP1, Vector3 localP2, Vector3 worldP1, Vector3 worldP2) {
+			this.localP1 = localP1;
+			this.localP2 = localP2;
+			this.worldP1 = worldP1;
+			this.worldP2 = worldP2;
+			this.localVect = (localP2 - localP1);
+			this.worldVect = (worldP2 - worldP1);
 		}
 	}
 	
@@ -62,12 +83,12 @@ public class Slicer : MonoBehaviour {
 		GameObject[] convexTargets = GameObject.FindGameObjectsWithTag("Sliceable-Convex");
 		GameObject[] nonConvexTargets = GameObject.FindGameObjectsWithTag("Sliceable");
 		foreach(GameObject target in convexTargets) {
-			if(IsPlaneIntersecting(target, plane)) {
+			if(PlaneHitTest(target, plane)) {
 				SliceMesh(target, plane, true);
 			}
 		}
 		foreach(GameObject target in nonConvexTargets) {
-			if(IsPlaneIntersecting(target, plane)) {
+			if(PlaneHitTest(target, plane)) {
 				SliceMesh(target, plane, false);
 			}
 		}
@@ -75,7 +96,6 @@ public class Slicer : MonoBehaviour {
 	
 	// Slice mesh along plane intersection
 	void SliceMesh(GameObject obj, CustomPlane plane, bool isConvex) {
-		
 		// original GameObject data
 		Transform objTransform = obj.transform;
 		Mesh objMesh = obj.GetComponent<MeshFilter>().mesh;
@@ -86,13 +106,13 @@ public class Slicer : MonoBehaviour {
 		string objName = obj.name;
 		
 		// Slice mesh data
-		List<Vector3> slice1Verts = new List<Vector3>();
-		List<Vector3> slice2Verts = new List<Vector3>();
-		List<int> slice1Tris = new List<int>();
-		List<int> slice2Tris = new List<int>();
-		List<Vector2> slice1UVs = new List<Vector2>();
-		List<Vector2> slice2UVs = new List<Vector2>();
-		List<Vector3> POIs = new List<Vector3>();
+		slice1Verts = new List<Vector3>();
+		slice2Verts = new List<Vector3>();
+		slice1Tris = new List<int>();
+		slice2Tris = new List<int>();
+		slice1UVs = new List<Vector2>();
+		slice2UVs = new List<Vector2>();
+		List<LineSegment> lineLoop = new List<LineSegment>();
 		
 		// Loop through triangles
 		for(int i = 0; i < meshTris.Length / 3; i++) {
@@ -163,17 +183,16 @@ public class Slicer : MonoBehaviour {
 				slicedTriVerts[3] = objTransform.InverseTransformPoint(poi1);
 				slicedTriVerts[4] = objTransform.InverseTransformPoint(poi2);
 				
+				// Save POIs for cross-sectional face
+				if(isConvex && fillConvexMesh) {
+					lineLoop.Add(new LineSegment(slicedTriVerts[3], slicedTriVerts[4], poi1, poi2));
+				}
+				
 				// POI UVs
 				float t1 = Vector3.Distance(slicedTriVerts[0], slicedTriVerts[3]) / Vector3.Distance(slicedTriVerts[0], slicedTriVerts[1]);
 				float t2 = Vector3.Distance(slicedTriVerts[0], slicedTriVerts[4]) / Vector3.Distance(slicedTriVerts[0], slicedTriVerts[2]);
 				slicedTriUVs[3] = Vector2.Lerp(slicedTriUVs[0], slicedTriUVs[1], t1);
 				slicedTriUVs[4] = Vector2.Lerp(slicedTriUVs[0], slicedTriUVs[2], t2);
-				
-				// Save POIs for cross-sectional face
-				if(isConvex && fillConvexMesh) {
-					POIs.Add(slicedTriVerts[3]);
-					POIs.Add(slicedTriVerts[4]);
-				}
 				
 				// Add bisected triangle to slice respectively
 				if(plane.GetSide(triVertsWorld2[0]) > 0) {
@@ -216,13 +235,9 @@ public class Slicer : MonoBehaviour {
 			}
 		}
 		// Fill convex mesh
-		/*if(isConvex && fillConvexMesh) {
-			// fill mesh
-			for(int i = 0; i < POIs.Count; i++) {
-				slice1Verts.Add(POIs[i]);
-				slice2Verts.Add(POIs[i]);
-			}
-		}*/
+		if(isConvex && fillConvexMesh) {
+			FillSlice(lineLoop, plane.normal);
+		}
 		// Build Meshes
 		if(slice1Verts.Count > 0) {
 			BuildSlice(objName, slice1Verts.ToArray(), slice1Tris.ToArray(), slice1UVs.ToArray(), obj.transform, objMaterial, isConvex);
@@ -232,6 +247,48 @@ public class Slicer : MonoBehaviour {
 		}
 		// Delete original
 		Destroy(obj);
+	}
+	
+	void FillSlice(List<LineSegment> ring, Vector3 normal) {
+		List<LineSegment> interiorRing = new List<LineSegment>();
+		for(int i = 0; i < ring.Count - 2; i += 2) {
+			/*if(ring[i].worldP2 == ring[0].worldP1 || ring[i + 1].worldP2 == ring[0].worldP1) {
+				i = ring.Count;
+				continue;
+			}*/ //requires ordered line segments
+			Vector3 cross = Vector3.Cross(ring[i].worldVect, ring[i + 1].worldVect).normalized;
+			if(cross == normal) {
+				slice1Verts.Add(ring[i].localP1);
+				slice1Tris.Add(slice1Verts.Count - 1);
+				slice1Verts.Add(ring[i].localP2);
+				slice1Tris.Add(slice1Verts.Count - 1);
+				slice1Verts.Add(ring[i + 1].localP2);
+				slice1Tris.Add(slice1Verts.Count - 1);
+				// uvs
+				slice1UVs.Add(Vector2.zero);
+				slice1UVs.Add(Vector2.zero);
+				slice1UVs.Add(Vector2.zero);
+				interiorRing.Add(new LineSegment(ring[i].localP1, ring[i+1].localP2, ring[i].worldP1, ring[i+1].worldP2));
+			} else {
+				interiorRing.Add(new LineSegment(ring[i].localP1, ring[i].localP2, ring[i].worldP1, ring[i].worldP2));
+				i--;
+			}
+		}
+		if(interiorRing.Count > 3) {
+			FillSlice(interiorRing, normal);
+			Debug.Log ("recursed");
+		} else {
+			slice1Verts.Add(interiorRing[0].localP1);
+			slice1Tris.Add(slice1Verts.Count - 1);
+			slice1Verts.Add(interiorRing[0].localP2);
+			slice1Tris.Add(slice1Verts.Count - 1);
+			slice1Verts.Add(interiorRing[1].localP2);
+			slice1Tris.Add(slice1Verts.Count - 1);
+			// uvs
+			slice1UVs.Add(Vector2.zero);
+			slice1UVs.Add(Vector2.zero);
+			slice1UVs.Add(Vector2.zero);
+		}
 	}
 	
 	void BuildSlice(string name, Vector3[] vertices, int[] triangles, Vector2[] uv, Transform objTransform, Material objMaterial, bool isConvex) {
@@ -262,7 +319,7 @@ public class Slicer : MonoBehaviour {
 	}
 
 	// Test intersection of plane and object's bounding box
-	bool IsPlaneIntersecting(GameObject obj, CustomPlane plane) {
+	bool PlaneHitTest(GameObject obj, CustomPlane plane) {
 		// test plane intersection against bounding box of Renderer.Bounds
 		Vector3 objMax = obj.GetComponent<MeshRenderer>().bounds.max;
 		Vector3 objMin = obj.GetComponent<MeshRenderer>().bounds.min;
