@@ -11,6 +11,7 @@ public class Slicer : MonoBehaviour {
 	List<Vector3> slice1Verts, slice2Verts;
 	List<int> slice1Tris, slice2Tris;
 	List<Vector2> slice1UVs, slice2UVs;
+	List<LineSegment> orderedList;
 
 	struct CustomPlane {
 		public readonly Vector3 point;
@@ -236,7 +237,9 @@ public class Slicer : MonoBehaviour {
 		}
 		// Fill convex mesh
 		if(isConvex && fillConvexMesh) {
-			FillSlice(lineLoop, plane.normal);
+			orderedList = new List<LineSegment>();
+			orderedList.Add(lineLoop[0]);
+			FillFace(OrderSegments(lineLoop), plane.normal);
 		}
 		// Build Meshes
 		if(slice1Verts.Count > 0) {
@@ -248,14 +251,21 @@ public class Slicer : MonoBehaviour {
 		// Delete original
 		Destroy(obj);
 	}
+	List<LineSegment> OrderSegments(List<LineSegment> lineLoop) {
+		for(int i = 1; i < lineLoop.Count; i++) {
+			if(orderedList[orderedList.Count - 1].localP2 == lineLoop[i].localP1) {
+				orderedList.Add(lineLoop[i]);
+				lineLoop.Remove(lineLoop[i]);
+				OrderSegments(lineLoop);
+				i = lineLoop.Count;
+			}
+		}
+		return orderedList;
+	}
 	
-	void FillSlice(List<LineSegment> ring, Vector3 normal) {
+	void FillFace(List<LineSegment> ring, Vector3 normal) {
 		List<LineSegment> interiorRing = new List<LineSegment>();
 		for(int i = 0; i < ring.Count - 2; i += 2) {
-			/*if(ring[i].worldP2 == ring[0].worldP1 || ring[i + 1].worldP2 == ring[0].worldP1) {
-				i = ring.Count;
-				continue;
-			}*/ //requires ordered line segments
 			Vector3 cross = Vector3.Cross(ring[i].worldVect, ring[i + 1].worldVect).normalized;
 			if(cross == normal) {
 				slice1Verts.Add(ring[i].localP1);
@@ -275,8 +285,7 @@ public class Slicer : MonoBehaviour {
 			}
 		}
 		if(interiorRing.Count > 3) {
-			FillSlice(interiorRing, normal);
-			Debug.Log ("recursed");
+			FillFace(interiorRing, normal);
 		} else {
 			slice1Verts.Add(interiorRing[0].localP1);
 			slice1Tris.Add(slice1Verts.Count - 1);

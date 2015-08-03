@@ -185,80 +185,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   fillConvexMesh: 1
---- !u!1001 &1316236885
-Prefab:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 400012, guid: ed47c5a28308f4d73a626dd8c00027b9, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 400012, guid: ed47c5a28308f4d73a626dd8c00027b9, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: -.99000001
-      objectReference: {fileID: 0}
-    - target: {fileID: 400012, guid: ed47c5a28308f4d73a626dd8c00027b9, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 1.70000005
-      objectReference: {fileID: 0}
-    - target: {fileID: 400012, guid: ed47c5a28308f4d73a626dd8c00027b9, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: .029250579
-      objectReference: {fileID: 0}
-    - target: {fileID: 400012, guid: ed47c5a28308f4d73a626dd8c00027b9, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: .951687694
-      objectReference: {fileID: 0}
-    - target: {fileID: 400012, guid: ed47c5a28308f4d73a626dd8c00027b9, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: -.09591382
-      objectReference: {fileID: 0}
-    - target: {fileID: 400012, guid: ed47c5a28308f4d73a626dd8c00027b9, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: .290233612
-      objectReference: {fileID: 0}
-    - target: {fileID: 400012, guid: ed47c5a28308f4d73a626dd8c00027b9, type: 3}
-      propertyPath: m_RootOrder
-      value: 2
-      objectReference: {fileID: 0}
-    - target: {fileID: 100012, guid: ed47c5a28308f4d73a626dd8c00027b9, type: 3}
-      propertyPath: m_TagString
-      value: Untagged
-      objectReference: {fileID: 0}
-    - target: {fileID: 100012, guid: ed47c5a28308f4d73a626dd8c00027b9, type: 3}
-      propertyPath: m_IsActive
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 100010, guid: ed47c5a28308f4d73a626dd8c00027b9, type: 3}
-      propertyPath: m_TagString
-      value: Sliceable-Convex
-      objectReference: {fileID: 0}
-    - target: {fileID: 100008, guid: ed47c5a28308f4d73a626dd8c00027b9, type: 3}
-      propertyPath: m_TagString
-      value: Sliceable-Convex
-      objectReference: {fileID: 0}
-    - target: {fileID: 100006, guid: ed47c5a28308f4d73a626dd8c00027b9, type: 3}
-      propertyPath: m_TagString
-      value: Sliceable-Convex
-      objectReference: {fileID: 0}
-    - target: {fileID: 100004, guid: ed47c5a28308f4d73a626dd8c00027b9, type: 3}
-      propertyPath: m_TagString
-      value: Sliceable-Convex
-      objectReference: {fileID: 0}
-    - target: {fileID: 100002, guid: ed47c5a28308f4d73a626dd8c00027b9, type: 3}
-      propertyPath: m_TagString
-      value: Sliceable-Convex
-      objectReference: {fileID: 0}
-    - target: {fileID: 100000, guid: ed47c5a28308f4d73a626dd8c00027b9, type: 3}
-      propertyPath: m_TagString
-      value: Sliceable-Convex
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-  m_ParentPrefab: {fileID: 100100000, guid: ed47c5a28308f4d73a626dd8c00027b9, type: 3}
-  m_IsPrefabParent: 0
 --- !u!1 &1524602917
 GameObject:
   m_ObjectHideFlags: 0
@@ -287,7 +213,7 @@ MeshRenderer:
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: bb22c93bbe049435499338d9718e6723, type: 2}
   m_SubsetIndices: 
   m_StaticBatchRoot: {fileID: 0}
   m_UseLightProbes: 1
@@ -326,12 +252,12 @@ Transform:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1524602917}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -.164082557, y: .588044941, z: .123331077, w: .782348692}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 2, y: 2, z: 2}
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 3
+  m_RootOrder: 2
 --- !u!1 &2125644713
 GameObject:
   m_ObjectHideFlags: 0
