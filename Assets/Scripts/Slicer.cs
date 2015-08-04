@@ -238,7 +238,8 @@ public class Slicer : MonoBehaviour {
 		// Fill convex mesh
 		if(isConvex && fillConvexMesh) {
 			orderedList = new List<LineSegment>();
-			orderedList.Add(lineLoop[0]);
+			orderedList.Add(lineLoop[0]); // move this to seperate method
+			lineLoop.RemoveAt(0);
 			FillFace(OrderSegments(lineLoop), plane.normal);
 		}
 		// Build Meshes
@@ -256,6 +257,13 @@ public class Slicer : MonoBehaviour {
 			if(orderedList[orderedList.Count - 1].localP2 == lineLoop[i].localP1) {
 				orderedList.Add(lineLoop[i]);
 				lineLoop.Remove(lineLoop[i]);
+				OrderSegments(lineLoop);
+				i = lineLoop.Count;
+			} else if(orderedList[orderedList.Count - 1].localP2 == lineLoop[i].localP2) {
+				LineSegment flippedSegment = new LineSegment(lineLoop[i].localP2, lineLoop[i].localP1, 
+				                                             lineLoop[i].worldP2, lineLoop[i].worldP1);
+				lineLoop.Remove(lineLoop[i]);
+				orderedList.Add(flippedSegment);
 				OrderSegments(lineLoop);
 				i = lineLoop.Count;
 			}
@@ -278,6 +286,17 @@ public class Slicer : MonoBehaviour {
 				slice1UVs.Add(Vector2.zero);
 				slice1UVs.Add(Vector2.zero);
 				slice1UVs.Add(Vector2.zero);
+
+				slice2Verts.Add(ring[i].localP1);
+				slice2Tris.Add(slice2Verts.Count - 1);
+				slice2Verts.Add(ring[i].localP2);
+				slice2Tris.Add(slice2Verts.Count - 1);
+				slice2Verts.Add(ring[i + 1].localP2);
+				slice2Tris.Add(slice2Verts.Count - 1);
+				// uvs
+				slice2UVs.Add(Vector2.zero);
+				slice2UVs.Add(Vector2.zero);
+				slice2UVs.Add(Vector2.zero);
 				interiorRing.Add(new LineSegment(ring[i].localP1, ring[i+1].localP2, ring[i].worldP1, ring[i+1].worldP2));
 			} else {
 				interiorRing.Add(new LineSegment(ring[i].localP1, ring[i].localP2, ring[i].worldP1, ring[i].worldP2));
@@ -297,6 +316,17 @@ public class Slicer : MonoBehaviour {
 			slice1UVs.Add(Vector2.zero);
 			slice1UVs.Add(Vector2.zero);
 			slice1UVs.Add(Vector2.zero);
+
+			slice2Verts.Add(interiorRing[0].localP1);
+			slice2Tris.Add(slice2Verts.Count - 1);
+			slice2Verts.Add(interiorRing[0].localP2);
+			slice2Tris.Add(slice2Verts.Count - 1);
+			slice2Verts.Add(interiorRing[1].localP2);
+			slice2Tris.Add(slice2Verts.Count - 1);
+			// uvs
+			slice2UVs.Add(Vector2.zero);
+			slice2UVs.Add(Vector2.zero);
+			slice2UVs.Add(Vector2.zero);
 		}
 	}
 	
