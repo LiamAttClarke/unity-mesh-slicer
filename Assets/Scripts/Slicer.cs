@@ -6,6 +6,9 @@ public class Slicer : MonoBehaviour {
 	public bool fillConvexMesh = true;
 	private Vector3 sliceStartPos, sliceEndPos;
 	private bool isSlicing = false;
+	GameObject startUI, endUI, lineUI;
+	RectTransform lineRectTransform;
+	float lineWidth;
 	private int[] vertOrderCW = {0,3,4, 1,2,4, 4,3,1};
 	private int[] vertOrderCCW = {4,3,0, 4,2,1, 1,3,4};
 	List<Vector3> slice1Verts, slice2Verts;
@@ -57,6 +60,23 @@ public class Slicer : MonoBehaviour {
 			this.worldVect = (worldP2 - worldP1);
 		}
 	}
+	void Start() {
+		GameObject canvas = GameObject.Find("Canvas");
+		GameObject startPrefab = (GameObject)Resources.Load("Prefabs/Slice_Start");
+		GameObject endPrefab = (GameObject)Resources.Load("Prefabs/Slice_End");
+		GameObject linePrefab = (GameObject)Resources.Load("Prefabs/Slice_Line");
+		startUI = Canvas.Instantiate(startPrefab);
+		endUI = Canvas.Instantiate(endPrefab);
+		lineUI = Canvas.Instantiate(linePrefab);
+		startUI.transform.SetParent(canvas.transform);
+		endUI.transform.SetParent(canvas.transform);
+		lineUI.transform.SetParent(canvas.transform);
+		startUI.SetActive(false);
+		endUI.SetActive(false);
+		lineUI.SetActive(false);
+		lineRectTransform = lineUI.GetComponent<RectTransform>();
+		lineWidth = lineRectTransform.rect.width;
+	}
 	
 	// Update is called once per frame
 	void Update () {
@@ -65,6 +85,8 @@ public class Slicer : MonoBehaviour {
 		if (Input.GetMouseButtonDown (0)) {
 			mousePos = new Vector3(Input.mousePosition.x, Input.mousePosition.y, 1.0f);
 			sliceStartPos = Camera.main.ScreenToWorldPoint(mousePos);
+			startUI.SetActive(true);
+			startUI.transform.position = Input.mousePosition;
 			isSlicing = true;
 		} else if(Input.GetMouseButtonUp (0) && isSlicing) {
 			mousePos = new Vector3(Input.mousePosition.x, Input.mousePosition.y, 1.0f); // "z" value defines distance from camera
@@ -76,6 +98,21 @@ public class Slicer : MonoBehaviour {
 				Slice(plane);
 			}
 			isSlicing = false;
+		}
+		if(isSlicing) {
+			endUI.SetActive(true);
+			lineUI.SetActive(true);
+			endUI.transform.position = Input.mousePosition;
+			Vector2 linePos = (endUI.transform.position + startUI.transform.position) * 0.5f;
+			float lineHeight = Vector2.Distance(endUI.transform.position, startUI.transform.position);
+			Vector3 lineDir = (endUI.transform.position - startUI.transform.position).normalized;
+			lineUI.transform.position = linePos;
+			lineRectTransform.sizeDelta = new Vector2(lineWidth, lineHeight);
+			lineUI.transform.rotation = Quaternion.FromToRotation(Vector3.up, lineDir);
+		} else {
+			startUI.SetActive(false);
+			endUI.SetActive(false);
+			lineUI.SetActive(false);
 		}
 	}
 	
