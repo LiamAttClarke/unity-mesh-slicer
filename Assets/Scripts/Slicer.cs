@@ -253,7 +253,7 @@ public class Slicer : MonoBehaviour {
 		Destroy(obj);
 	}
 	List<LineSegment> OrderSegments(List<LineSegment> lineLoop) {
-		for(int i = 1; i < lineLoop.Count; i++) {
+		for(int i = 0; i < lineLoop.Count; i++) {
 			if(orderedList[orderedList.Count - 1].localP2 == lineLoop[i].localP1) {
 				orderedList.Add(lineLoop[i]);
 				lineLoop.Remove(lineLoop[i]);
@@ -273,7 +273,7 @@ public class Slicer : MonoBehaviour {
 	
 	void FillFace(List<LineSegment> ring, Vector3 normal) {
 		List<LineSegment> interiorRing = new List<LineSegment>();
-		for(int i = 0; i < ring.Count - 2; i += 2) {
+		for(int i = 0; i < ring.Count - 1; i++) {
 			Vector3 cross = Vector3.Cross(ring[i].worldVect, ring[i + 1].worldVect).normalized;
 			if(cross == normal) {
 				slice1Verts.Add(ring[i].localP1);
@@ -298,12 +298,12 @@ public class Slicer : MonoBehaviour {
 				slice2UVs.Add(Vector2.zero);
 				slice2UVs.Add(Vector2.zero);
 				interiorRing.Add(new LineSegment(ring[i].localP1, ring[i+1].localP2, ring[i].worldP1, ring[i+1].worldP2));
+				i++;
 			} else {
 				interiorRing.Add(new LineSegment(ring[i].localP1, ring[i].localP2, ring[i].worldP1, ring[i].worldP2));
-				i--;
 			}
 		}
-		if(interiorRing.Count > 3) {
+		if(interiorRing.Count > 2) {
 			FillFace(interiorRing, normal);
 		} else {
 			slice1Verts.Add(interiorRing[0].localP1);
