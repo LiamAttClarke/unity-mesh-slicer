@@ -6,7 +6,7 @@ public class Slicer : MonoBehaviour {
 	public bool fillConvexMesh = true;
 	private Vector3 sliceStartPos, sliceEndPos;
 	private bool isSlicing = false;
-	GameObject startUI, endUI, lineUI;
+	GameObject startUI, endUI, lineUI, slicePrefab;
 	RectTransform lineRectTransform;
 	float lineWidth;
 	private int[] vertOrderCW = {0,3,4, 1,2,4, 4,3,1};
@@ -61,12 +61,12 @@ public class Slicer : MonoBehaviour {
 		}
 	}
 	void Start() {
+		slicePrefab = (GameObject)Resources.Load("Prefabs/Slice");
 		GameObject canvas = GameObject.Find("Canvas");
-		GameObject startPrefab = (GameObject)Resources.Load("Prefabs/Slice_Start");
-		GameObject endPrefab = (GameObject)Resources.Load("Prefabs/Slice_End");
+		GameObject pointPrefab = (GameObject)Resources.Load("Prefabs/Slice_Point");
 		GameObject linePrefab = (GameObject)Resources.Load("Prefabs/Slice_Line");
-		startUI = Canvas.Instantiate(startPrefab);
-		endUI = Canvas.Instantiate(endPrefab);
+		startUI = Canvas.Instantiate(pointPrefab);
+		endUI = Canvas.Instantiate(pointPrefab);
 		lineUI = Canvas.Instantiate(linePrefab);
 		startUI.transform.SetParent(canvas.transform);
 		endUI.transform.SetParent(canvas.transform);
@@ -81,14 +81,14 @@ public class Slicer : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {
 		Vector3 mousePos;
-		// Define Slicing Plane
 		if (Input.GetMouseButtonDown (0)) {
+			isSlicing = true;
 			mousePos = new Vector3(Input.mousePosition.x, Input.mousePosition.y, 1.0f);
 			sliceStartPos = Camera.main.ScreenToWorldPoint(mousePos);
 			startUI.SetActive(true);
 			startUI.transform.position = Input.mousePosition;
-			isSlicing = true;
 		} else if(Input.GetMouseButtonUp (0) && isSlicing) {
+			isSlicing = false;
 			mousePos = new Vector3(Input.mousePosition.x, Input.mousePosition.y, 1.0f); // "z" value defines distance from camera
 			sliceEndPos = Camera.main.ScreenToWorldPoint(mousePos);
 			if(sliceStartPos != sliceEndPos) {
@@ -97,7 +97,6 @@ public class Slicer : MonoBehaviour {
 				CustomPlane plane = new CustomPlane(sliceStartPos, sliceEndPos, point3);
 				Slice(plane);
 			}
-			isSlicing = false;
 		}
 		if(isSlicing) {
 			endUI.SetActive(true);
@@ -220,11 +219,8 @@ public class Slicer : MonoBehaviour {
 				Vector3 poi2 = VectorPlanePOI(triVertsWorld2[0], (triVertsWorld2[2] - triVertsWorld2[0]).normalized, plane);
 				slicedTriVerts[3] = objTransform.InverseTransformPoint(poi1);
 				slicedTriVerts[4] = objTransform.InverseTransformPoint(poi2);
-				
-				// Save POIs for cross-sectional face
-				if(isConvex && fillConvexMesh) {
-					lineLoop.Add(new LineSegment(slicedTriVerts[3], slicedTriVerts[4], poi1, poi2));
-				}
+
+				lineLoop.Add(new LineSegment(slicedTriVerts[3], slicedTriVerts[4], poi1, poi2));
 				
 				// POI UVs
 				float t1 = Vector3.Distance(slicedTriVerts[0], slicedTriVerts[3]) / Vector3.Distance(slicedTriVerts[0], slicedTriVerts[1]);
@@ -272,23 +268,47 @@ public class Slicer : MonoBehaviour {
 				}
 			}
 		}
-		// Fill convex mesh
-		if(isConvex && fillConvexMesh) {
-			orderedList = new List<LineSegment>();
-			orderedList.Add(lineLoop[0]); // move this to seperate method
-			lineLoop.RemoveAt(0);
-			FillFace(OrderSegments(lineLoop), plane.normal);
+		if(lineLoop.Count > 0) {
+			// Fill convex mesh
+			if(isConvex && fillConvexMesh) {
+				FillFace(lineLoop, plane.normal);
+			}
+			// Build Meshes
+			if(slice1Verts.Count > 0) {
+				BuildSlice(objName, slice1Verts.ToArray(), slice1Tris.ToArray(), slice1UVs.ToArray(), obj.transform, objMaterial, isConvex);
+			}
+			if(slice2Verts.Count > 0) {
+				BuildSlice(objName, slice2Verts.ToArray(), slice2Tris.ToArray(), slice2UVs.ToArray(), obj.transform, objMaterial, isConvex);
+			}
+			// Delete original
+			Destroy(obj);
 		}
-		// Build Meshes
-		if(slice1Verts.Count > 0) {
-			BuildSlice(objName, slice1Verts.ToArray(), slice1Tris.ToArray(), slice1UVs.ToArray(), obj.transform, objMaterial, isConvex);
-		}
-		if(slice2Verts.Count > 0) {
-			BuildSlice(objName, slice2Verts.ToArray(), slice2Tris.ToArray(), slice2UVs.ToArray(), obj.transform, objMaterial, isConvex);
-		}
-		// Delete original
-		Destroy(obj);
 	}
+	
+	void FillFace(List<LineSegment> ring, Vector3 normal) {
+		orderedList = new List<LineSegment>();
+		orderedList.Add(ring[0]);
+		ring.RemoveAt(0);
+		ring = OrderSegments (ring);
+		/*
+		int rightTurns = 0;
+		int leftTurns = 0;
+		for(int i = 0; i < ring.Count - 1; i++) {
+			Vector3 cross = Vector3.Cross(ring[i].worldVect, ring[i + 1].worldVect).normalized;
+			if(cross == normal) {
+				rightTurns++;
+			} else {
+				leftTurns++;
+			}
+		}
+		if(leftTurns > rightTurns) {
+			normal *= -1f;
+			Debug.Log("!");
+		}
+		*/
+		TriangulatePolygon(ring, normal);
+	}
+
 	List<LineSegment> OrderSegments(List<LineSegment> lineLoop) {
 		for(int i = 0; i < lineLoop.Count; i++) {
 			if(orderedList[orderedList.Count - 1].localP2 == lineLoop[i].localP1) {
@@ -307,23 +327,24 @@ public class Slicer : MonoBehaviour {
 		}
 		return orderedList;
 	}
-	
-	void FillFace(List<LineSegment> ring, Vector3 normal) {
+
+	void TriangulatePolygon(List<LineSegment> ring, Vector3 normal) {
 		List<LineSegment> interiorRing = new List<LineSegment>();
 		for(int i = 0; i < ring.Count - 1; i++) {
 			Vector3 cross = Vector3.Cross(ring[i].worldVect, ring[i + 1].worldVect).normalized;
 			if(cross == normal) {
-				slice1Verts.Add(ring[i].localP1);
+				slice1Verts.Add(ring[i + 1].localP2);
 				slice1Tris.Add(slice1Verts.Count - 1);
 				slice1Verts.Add(ring[i].localP2);
 				slice1Tris.Add(slice1Verts.Count - 1);
-				slice1Verts.Add(ring[i + 1].localP2);
+				slice1Verts.Add(ring[i].localP1);
 				slice1Tris.Add(slice1Verts.Count - 1);
+				
 				// uvs
 				slice1UVs.Add(Vector2.zero);
 				slice1UVs.Add(Vector2.zero);
 				slice1UVs.Add(Vector2.zero);
-
+				
 				slice2Verts.Add(ring[i].localP1);
 				slice2Tris.Add(slice2Verts.Count - 1);
 				slice2Verts.Add(ring[i].localP2);
@@ -341,19 +362,19 @@ public class Slicer : MonoBehaviour {
 			}
 		}
 		if(interiorRing.Count > 2) {
-			FillFace(interiorRing, normal);
+			TriangulatePolygon(interiorRing, normal);
 		} else {
-			slice1Verts.Add(interiorRing[0].localP1);
+			slice1Verts.Add(interiorRing[1].localP2);
 			slice1Tris.Add(slice1Verts.Count - 1);
 			slice1Verts.Add(interiorRing[0].localP2);
 			slice1Tris.Add(slice1Verts.Count - 1);
-			slice1Verts.Add(interiorRing[1].localP2);
+			slice1Verts.Add(interiorRing[0].localP1);
 			slice1Tris.Add(slice1Verts.Count - 1);
 			// uvs
 			slice1UVs.Add(Vector2.zero);
 			slice1UVs.Add(Vector2.zero);
 			slice1UVs.Add(Vector2.zero);
-
+			
 			slice2Verts.Add(interiorRing[0].localP1);
 			slice2Tris.Add(slice2Verts.Count - 1);
 			slice2Verts.Add(interiorRing[0].localP2);
@@ -366,27 +387,22 @@ public class Slicer : MonoBehaviour {
 			slice2UVs.Add(Vector2.zero);
 		}
 	}
-	
+
 	void BuildSlice(string name, Vector3[] vertices, int[] triangles, Vector2[] uv, Transform objTransform, Material objMaterial, bool isConvex) {
+		// Generate Mesh
 		Mesh sliceMesh = new Mesh();
 		sliceMesh.vertices = vertices;
 		sliceMesh.triangles = triangles;
 		sliceMesh.uv = uv;
 		sliceMesh.RecalculateNormals();
 		sliceMesh.RecalculateBounds();
-		// Instantiate new gameObject with components
-		GameObject slice = new GameObject(name + "-Slice");
-		slice.AddComponent<MeshFilter>();
-		slice.AddComponent<MeshRenderer>();
-		slice.AddComponent<MeshCollider>();
-		//slice.AddComponent<Rigidbody>();
-		// Assign values to gameObject
+		// Instantiate Slice and update properties
+		GameObject slice = (GameObject)Instantiate (slicePrefab, objTransform.position, objTransform.rotation);
+		slice.name = name + "-Slice";
 		slice.GetComponent<MeshFilter>().mesh = sliceMesh;
-		slice.GetComponent<MeshRenderer>().material = objMaterial; 
 		slice.GetComponent<MeshCollider>().sharedMesh = sliceMesh;
-		slice.transform.position = objTransform.position;
-		slice.transform.rotation = objTransform.rotation;
 		slice.transform.localScale = objTransform.localScale;
+		slice.GetComponent<MeshRenderer> ().material = objMaterial;
 		if(isConvex) {
 			slice.tag = "Sliceable-Convex";
 		} else {
