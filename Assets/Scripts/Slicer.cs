@@ -290,7 +290,7 @@ public class Slicer : MonoBehaviour {
 		orderedList.Add(ring[0]);
 		ring.RemoveAt(0);
 		ring = OrderSegments (ring);
-		/*
+
 		int rightTurns = 0;
 		int leftTurns = 0;
 		for(int i = 0; i < ring.Count - 1; i++) {
@@ -302,10 +302,9 @@ public class Slicer : MonoBehaviour {
 			}
 		}
 		if(leftTurns > rightTurns) {
-			normal *= -1f;
-			Debug.Log("!");
+			normal *= -1f; // THIS NEEDS FIXIN BUDDY!
 		}
-		*/
+
 		TriangulatePolygon(ring, normal);
 	}
 
@@ -363,7 +362,8 @@ public class Slicer : MonoBehaviour {
 		}
 		if(interiorRing.Count > 2) {
 			TriangulatePolygon(interiorRing, normal);
-		} else {
+		} else { // out of range when interiorRing.Count < 2
+			Debug.Log (interiorRing.Count);
 			slice1Verts.Add(interiorRing[1].localP2);
 			slice1Tris.Add(slice1Verts.Count - 1);
 			slice1Verts.Add(interiorRing[0].localP2);
