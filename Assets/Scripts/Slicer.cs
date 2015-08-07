@@ -169,7 +169,9 @@ public class Slicer : MonoBehaviour {
 			float vert1Side = plane.GetSide(triVertsWorld[0]);
 			float vert2Side = plane.GetSide(triVertsWorld[1]);
 			float vert3Side = plane.GetSide(triVertsWorld[2]);
-			
+			/*if(vert1Side == 0 || vert2Side == 0 || vert3Side == 0) {
+				Debug.Log ("oops");
+			}*/
 			// assign triangles that do not intersect plane
 			if(vert1Side > 0 && vert2Side > 0 && vert3Side > 0) { 			// Slice 1
 				for(int j = 0; j < triVertsLocal.Length; j++) {
@@ -291,7 +293,7 @@ public class Slicer : MonoBehaviour {
 		ring.RemoveAt(0);
 		ring = OrderSegments (ring);
 
-		int rightTurns = 0;
+		/*int rightTurns = 0;
 		int leftTurns = 0;
 		for(int i = 0; i < ring.Count - 1; i++) {
 			Vector3 cross = Vector3.Cross(ring[i].worldVect, ring[i + 1].worldVect).normalized;
@@ -302,9 +304,8 @@ public class Slicer : MonoBehaviour {
 			}
 		}
 		if(leftTurns > rightTurns) {
-			normal *= -1f; // THIS NEEDS FIXIN BUDDY!
-		}
-
+			//normal *= -1f;
+		}*/
 		TriangulatePolygon(ring, normal);
 	}
 
@@ -359,11 +360,14 @@ public class Slicer : MonoBehaviour {
 			} else {
 				interiorRing.Add(new LineSegment(ring[i].localP1, ring[i].localP2, ring[i].worldP1, ring[i].worldP2));
 			}
+			if(i == ring.Count - 1) {
+				interiorRing.Add(ring[i]);
+			}
 		}
 		if(interiorRing.Count > 2) {
 			TriangulatePolygon(interiorRing, normal);
-		} else { // out of range when interiorRing.Count < 2
-			Debug.Log (interiorRing.Count);
+		} else if(interiorRing.Count == 2) {
+		// } else {
 			slice1Verts.Add(interiorRing[1].localP2);
 			slice1Tris.Add(slice1Verts.Count - 1);
 			slice1Verts.Add(interiorRing[0].localP2);
