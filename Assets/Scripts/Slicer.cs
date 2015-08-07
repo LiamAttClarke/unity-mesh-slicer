@@ -286,14 +286,15 @@ public class Slicer : MonoBehaviour {
 			Destroy(obj);
 		}
 	}
-	
+	bool isCW;
 	void FillFace(List<LineSegment> ring, Vector3 normal) {
+		isCW = true;
 		orderedList = new List<LineSegment>();
 		orderedList.Add(ring[0]);
 		ring.RemoveAt(0);
 		ring = OrderSegments (ring);
 
-		/*int rightTurns = 0;
+		int rightTurns = 0;
 		int leftTurns = 0;
 		for(int i = 0; i < ring.Count - 1; i++) {
 			Vector3 cross = Vector3.Cross(ring[i].worldVect, ring[i + 1].worldVect).normalized;
@@ -303,9 +304,10 @@ public class Slicer : MonoBehaviour {
 				leftTurns++;
 			}
 		}
-		if(leftTurns > rightTurns) {
-			//normal *= -1f;
-		}*/
+		if(leftTurns >= rightTurns) {
+			normal *= -1f;
+			isCW = false;
+		}
 		TriangulatePolygon(ring, normal);
 	}
 
@@ -330,68 +332,56 @@ public class Slicer : MonoBehaviour {
 
 	void TriangulatePolygon(List<LineSegment> ring, Vector3 normal) {
 		List<LineSegment> interiorRing = new List<LineSegment>();
-		for(int i = 0; i < ring.Count - 1; i++) {
-			Vector3 cross = Vector3.Cross(ring[i].worldVect, ring[i + 1].worldVect).normalized;
+		for(int i = 0; i < ring.Count; i++) {
+			if(i == ring.Count - 1) {
+				interiorRing.Add(ring[i]);
+				i = ring.Count;
+				continue;
+			}
+			Vector3 cross = Vector3.Cross(ring[i].worldVect, ring[i + 1].worldVect).normalized;// argument out of range
 			if(cross == normal) {
-				slice1Verts.Add(ring[i + 1].localP2);
-				slice1Tris.Add(slice1Verts.Count - 1);
-				slice1Verts.Add(ring[i].localP2);
-				slice1Tris.Add(slice1Verts.Count - 1);
-				slice1Verts.Add(ring[i].localP1);
-				slice1Tris.Add(slice1Verts.Count - 1);
-				
-				// uvs
-				slice1UVs.Add(Vector2.zero);
-				slice1UVs.Add(Vector2.zero);
-				slice1UVs.Add(Vector2.zero);
-				
-				slice2Verts.Add(ring[i].localP1);
-				slice2Tris.Add(slice2Verts.Count - 1);
-				slice2Verts.Add(ring[i].localP2);
-				slice2Tris.Add(slice2Verts.Count - 1);
-				slice2Verts.Add(ring[i + 1].localP2);
-				slice2Tris.Add(slice2Verts.Count - 1);
-				// uvs
-				slice2UVs.Add(Vector2.zero);
-				slice2UVs.Add(Vector2.zero);
-				slice2UVs.Add(Vector2.zero);
+				AddTriangle(ring, slice1Verts, slice1Tris, slice1UVs, isCW, i);
+				AddTriangle(ring, slice2Verts, slice2Tris, slice2UVs, !isCW, i);
 				interiorRing.Add(new LineSegment(ring[i].localP1, ring[i+1].localP2, ring[i].worldP1, ring[i+1].worldP2));
 				i++;
 			} else {
 				interiorRing.Add(new LineSegment(ring[i].localP1, ring[i].localP2, ring[i].worldP1, ring[i].worldP2));
 			}
-			if(i == ring.Count - 1) {
-				interiorRing.Add(ring[i]);
-			}
 		}
 		if(interiorRing.Count > 2) {
 			TriangulatePolygon(interiorRing, normal);
-		} else if(interiorRing.Count == 2) {
-		// } else {
-			slice1Verts.Add(interiorRing[1].localP2);
-			slice1Tris.Add(slice1Verts.Count - 1);
-			slice1Verts.Add(interiorRing[0].localP2);
-			slice1Tris.Add(slice1Verts.Count - 1);
-			slice1Verts.Add(interiorRing[0].localP1);
-			slice1Tris.Add(slice1Verts.Count - 1);
-			// uvs
-			slice1UVs.Add(Vector2.zero);
-			slice1UVs.Add(Vector2.zero);
-			slice1UVs.Add(Vector2.zero);
-			
-			slice2Verts.Add(interiorRing[0].localP1);
-			slice2Tris.Add(slice2Verts.Count - 1);
-			slice2Verts.Add(interiorRing[0].localP2);
-			slice2Tris.Add(slice2Verts.Count - 1);
-			slice2Verts.Add(interiorRing[1].localP2);
-			slice2Tris.Add(slice2Verts.Count - 1);
-			// uvs
-			slice2UVs.Add(Vector2.zero);
-			slice2UVs.Add(Vector2.zero);
-			slice2UVs.Add(Vector2.zero);
+		} else {
+			AddTriangle(interiorRing, slice1Verts, slice1Tris, slice1UVs, isCW, 0);
+			AddTriangle(interiorRing, slice2Verts, slice2Tris, slice2UVs, !isCW, 0);
 		}
 	}
+	
+	void AddTriangle(List<LineSegment> lineList, List<Vector3> vertList, List<int> triList, List<Vector2> uvList, bool isClockWise, int index) {
+		if(isClockWise) {
+			vertList.Add(lineList[index + 1].localP2);
+			triList.Add(vertList.Count - 1);
+			vertList.Add(lineList[index].localP2);
+			triList.Add(vertList.Count - 1);
+			vertList.Add(lineList[index].localP1);
+			triList.Add(vertList.Count - 1);
+			
+			uvList.Add(Vector2.zero);
+			uvList.Add(Vector2.zero);
+			uvList.Add(Vector2.zero);
+		} else {
+			vertList.Add(lineList[index].localP1);
+			triList.Add(vertList.Count - 1);
+			vertList.Add(lineList[index].localP2);
+			triList.Add(vertList.Count - 1);
+			vertList.Add(lineList[index + 1].localP2);
+			triList.Add(vertList.Count - 1);
 
+			uvList.Add(Vector2.zero);
+			uvList.Add(Vector2.zero);
+			uvList.Add(Vector2.zero);	
+		}
+	}
+	
 	void BuildSlice(string name, Vector3[] vertices, int[] triangles, Vector2[] uv, Transform objTransform, Material objMaterial, bool isConvex) {
 		// Generate Mesh
 		Mesh sliceMesh = new Mesh();
