@@ -48,17 +48,17 @@ public class Slicer : MonoBehaviour {
 	struct LineSegment {
 		public readonly Vector3 localP1;
 		public readonly Vector3 localP2;
-		public readonly Vector3 localVect;
+		public readonly Vector3 localDir;
 		public readonly Vector3 worldP1;
 		public readonly Vector3 worldP2;
-		public readonly Vector3 worldVect;
+		public readonly Vector3 worldDir;
 		public LineSegment(Vector3 localP1, Vector3 localP2, Vector3 worldP1, Vector3 worldP2) {
 			this.localP1 = localP1;
 			this.localP2 = localP2;
 			this.worldP1 = worldP1;
 			this.worldP2 = worldP2;
-			this.localVect = (localP2 - localP1);
-			this.worldVect = (worldP2 - worldP1);
+			this.localDir = (localP2 - localP1).normalized;
+			this.worldDir = (worldP2 - worldP1).normalized;
 		}
 	}
 	void Start() {
@@ -291,7 +291,7 @@ public class Slicer : MonoBehaviour {
 		int rightTurns = 0;
 		int leftTurns = 0;
 		for(int i = 0; i < ring.Count - 1; i++) {
-			Vector3 cross = Vector3.Cross(ring[i].worldVect, ring[i + 1].worldVect).normalized;
+			Vector3 cross = Vector3.Cross(ring[i].worldDir, ring[i + 1].worldDir).normalized;
 			if(cross == normal) {
 				rightTurns++;
 			} else if(cross == -normal) {
@@ -332,7 +332,7 @@ public class Slicer : MonoBehaviour {
 				i = ring.Count;
 				continue;
 			}
-			Vector3 cross = Vector3.Cross(ring[i].worldVect, ring[i + 1].worldVect).normalized;// argument out of range
+			Vector3 cross = Vector3.Cross(ring[i].worldDir, ring[i + 1].worldDir).normalized;
 			if(cross == normal) {
 				AddTriangle(ring, slice1Verts, slice1Tris, slice1UVs, isCW, i);
 				AddTriangle(ring, slice2Verts, slice2Tris, slice2UVs, !isCW, i);
