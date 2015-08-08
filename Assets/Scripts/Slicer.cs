@@ -4,13 +4,14 @@ using System.Collections.Generic;
 
 public class Slicer : MonoBehaviour {
 	public bool fillConvexMesh = true;
-	private Vector3 sliceStartPos, sliceEndPos;
-	private bool isSlicing = false;
+	Vector3 sliceStartPos, sliceEndPos;
+	bool isSlicing = false;
+	bool isCW = true;
 	GameObject startUI, endUI, lineUI, slicePrefab;
 	RectTransform lineRectTransform;
 	float lineWidth;
-	private int[] vertOrderCW = {0,3,4, 1,2,4, 4,3,1};
-	private int[] vertOrderCCW = {4,3,0, 4,2,1, 1,3,4};
+	int[] vertOrderCW = {0,3,4, 1,2,4, 4,3,1};
+	int[] vertOrderCCW = {4,3,0, 4,2,1, 1,3,4};
 	List<Vector3> slice1Verts, slice2Verts;
 	List<int> slice1Tris, slice2Tris;
 	List<Vector2> slice1UVs, slice2UVs;
@@ -185,6 +186,9 @@ public class Slicer : MonoBehaviour {
 					slice2Tris.Add(slice2Verts.Count - 1);
 					slice2UVs.Add(triUVs[j]);
 				}
+			} else if(vert1Side == 0 || vert2Side == 0 || vert3Side == 0) {
+				Debug.Log ("Point-Plane Intersection");
+				return;
 			} else {														// Intersecting Triangles
 				Vector3[] slicedTriVerts = new Vector3[5];
 				Vector2[] slicedTriUVs = new Vector2[5];
@@ -239,12 +243,7 @@ public class Slicer : MonoBehaviour {
 						slice1UVs.Add(slicedTriUVs[vertOrder[j]]);
 					}
 					// Slice 2
-					for(int j = 3; j < 6; j++) {
-						slice2Verts.Add(slicedTriVerts[vertOrder[j]]);
-						slice2Tris.Add(slice2Verts.Count - 1);
-						slice2UVs.Add(slicedTriUVs[vertOrder[j]]);
-					}
-					for(int j = 6; j < 9; j++) {
+					for(int j = 3; j < 9; j++) {
 						slice2Verts.Add(slicedTriVerts[vertOrder[j]]);
 						slice2Tris.Add(slice2Verts.Count - 1);
 						slice2UVs.Add(slicedTriUVs[vertOrder[j]]);
@@ -257,12 +256,7 @@ public class Slicer : MonoBehaviour {
 						slice2UVs.Add(slicedTriUVs[vertOrder[j]]);
 					}
 					// Slice 1
-					for(int j = 3; j < 6; j++) {
-						slice1Verts.Add(slicedTriVerts[vertOrder[j]]);
-						slice1Tris.Add(slice1Verts.Count - 1);
-						slice1UVs.Add(slicedTriUVs[vertOrder[j]]);
-					}
-					for(int j = 6; j < 9; j++) {
+					for(int j = 3; j < 9; j++) {
 						slice1Verts.Add(slicedTriVerts[vertOrder[j]]);
 						slice1Tris.Add(slice1Verts.Count - 1);
 						slice1UVs.Add(slicedTriUVs[vertOrder[j]]);
@@ -286,7 +280,7 @@ public class Slicer : MonoBehaviour {
 			Destroy(obj);
 		}
 	}
-	bool isCW;
+
 	void FillFace(List<LineSegment> ring, Vector3 normal) {
 		isCW = true;
 		orderedList = new List<LineSegment>();
@@ -300,11 +294,11 @@ public class Slicer : MonoBehaviour {
 			Vector3 cross = Vector3.Cross(ring[i].worldVect, ring[i + 1].worldVect).normalized;
 			if(cross == normal) {
 				rightTurns++;
-			} else {
+			} else if(cross == -normal) {
 				leftTurns++;
 			}
 		}
-		if(leftTurns >= rightTurns) {
+		if(leftTurns > rightTurns) {
 			normal *= -1f;
 			isCW = false;
 		}
