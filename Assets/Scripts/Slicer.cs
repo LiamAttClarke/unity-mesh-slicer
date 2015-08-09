@@ -40,15 +40,14 @@ public class Slicer : MonoBehaviour {
 		// Calculate plane's normal given 3 points on the plane
 		private Vector3 PlaneNormal(Vector3 point1, Vector3 point2, Vector3 point3) {
 			Vector3 vect1 = (point2 - point1);
-			Vector3 vect2 = (point3 - point1);
-			return Vector3.Cross(vect1, vect2).normalized;
+			Vector3 vect2 = (point3 - point2);
+			return Vector3.Cross(vect2, vect1).normalized;
 		}
 	}
 	
 	struct LineSegment {
 		public readonly Vector3 localP1;
 		public readonly Vector3 localP2;
-		public readonly Vector3 localDir;
 		public readonly Vector3 worldP1;
 		public readonly Vector3 worldP2;
 		public readonly Vector3 worldDir;
@@ -57,7 +56,6 @@ public class Slicer : MonoBehaviour {
 			this.localP2 = localP2;
 			this.worldP1 = worldP1;
 			this.worldP2 = worldP2;
-			this.localDir = (localP2 - localP1).normalized;
 			this.worldDir = (worldP2 - worldP1).normalized;
 		}
 	}
@@ -323,8 +321,9 @@ public class Slicer : MonoBehaviour {
 		}
 		return orderedList;
 	}
-
+	int count;
 	void TriangulatePolygon(List<LineSegment> ring, Vector3 normal) {
+		count++; if(count > 500) { Debug.Log ("Stack Overflow"); return;  }
 		List<LineSegment> interiorRing = new List<LineSegment>();
 		for(int i = 0; i < ring.Count; i++) {
 			if(i == ring.Count - 1) {
@@ -342,7 +341,7 @@ public class Slicer : MonoBehaviour {
 				interiorRing.Add(new LineSegment(ring[i].localP1, ring[i].localP2, ring[i].worldP1, ring[i].worldP2));
 			}
 		}
-		if(interiorRing.Count > 2) {
+		if(interiorRing.Count > 3) {
 			TriangulatePolygon(interiorRing, normal);
 		} else {
 			AddTriangle(interiorRing, slice1Verts, slice1Tris, slice1UVs, isCW, 0);
