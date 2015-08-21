@@ -11,6 +11,7 @@ GameObject:
   - 33: {fileID: 3381834}
   - 23: {fileID: 2303138}
   - 64: {fileID: 6484816}
+  - 54: {fileID: 5454426}
   m_Layer: 0
   m_Name: Slice
   m_TagString: Untagged
@@ -61,13 +62,28 @@ MeshFilter:
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 168634}
   m_Mesh: {fileID: 0}
+--- !u!54 &5454426
+Rigidbody:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 168634}
+  serializedVersion: 2
+  m_Mass: 1
+  m_Drag: 0
+  m_AngularDrag: .0500000007
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!64 &6484816
 MeshCollider:
   m_ObjectHideFlags: 1
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 168634}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 72b4f66d3587e43cea5965e0ad9f487a, type: 2}
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
@@ -88,6 +104,11 @@ Prefab:
       propertyPath: m_Convex
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 0}
+      propertyPath: m_Material
+      value: 
+      objectReference: {fileID: 13400000, guid: 72b4f66d3587e43cea5965e0ad9f487a,
+        type: 2}
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 0}
   m_RootGameObject: {fileID: 168634}

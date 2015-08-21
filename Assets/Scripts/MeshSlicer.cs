@@ -94,7 +94,6 @@ public static class MeshSlicer {
 		
 		// Loop through triangles
 		for(int i = 0; i < meshTris.Length / 3; i++) {
-			
 			// Define triangle 
 			Vector3[] triVertsLocal = new Vector3[3];
 			Vector3[] triVertsWorld = new Vector3[3];
@@ -105,7 +104,6 @@ public static class MeshSlicer {
 				triVertsWorld[j] = objTransform.TransformPoint(triVertsLocal[j]); 	// world space vertices
 				triUVs[j] = meshUVs[meshTris[meshIndexor]]; 							// original uv coordinates
 			}
-
 			// Side test: (0) = intersecting plane; (+) = above plane; (-) = below plane;
 			float vert1Side = plane.GetSide(triVertsWorld[0]);
 			float vert2Side = plane.GetSide(triVertsWorld[1]);
@@ -260,7 +258,6 @@ public static class MeshSlicer {
 				i = lineLoop.Count;
 			}
 		}
-
 		return orderedList;
 	}
 	
@@ -285,6 +282,7 @@ public static class MeshSlicer {
 				nextRing.Add(previousRing[i]);
 			}
 		}
+		// Overflow 
 		if(nextRing.Count == previousRing.Count) {
 			Debug.Log ("Overflow");
 			return; 
@@ -294,8 +292,6 @@ public static class MeshSlicer {
 		} else if (nextRing.Count == 3) {
 			AddTriangle(nextRing, slice1Verts, slice1Tris, slice1UVs, isCW, 0);
 			AddTriangle(nextRing, slice2Verts, slice2Tris, slice2UVs, !isCW, 0);
-		} else {
-			//
 		}
 	}
 	
@@ -345,10 +341,6 @@ public static class MeshSlicer {
 		} else {
 			slice.tag = "Sliceable";	
 		}
-		//experimental algorithm
-		var mc = slice.GetComponent<MeshCollider>();
-		mc.convex = !mc.convex;
-		mc.convex = !mc.convex;
 	}
 
 	// Test intersection of plane and object's bounding box
