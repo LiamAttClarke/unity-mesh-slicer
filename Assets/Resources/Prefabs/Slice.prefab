@@ -11,7 +11,7 @@ GameObject:
   - 33: {fileID: 3381834}
   - 23: {fileID: 2303138}
   - 64: {fileID: 6484816}
-  - 54: {fileID: 5454426}
+  - 54: {fileID: 5494484}
   m_Layer: 0
   m_Name: Slice
   m_TagString: Untagged
@@ -62,7 +62,7 @@ MeshFilter:
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 168634}
   m_Mesh: {fileID: 0}
---- !u!54 &5454426
+--- !u!54 &5494484
 Rigidbody:
   m_ObjectHideFlags: 1
   m_PrefabParentObject: {fileID: 0}

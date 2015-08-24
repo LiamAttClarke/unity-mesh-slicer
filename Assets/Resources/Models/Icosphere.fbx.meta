@@ -1,17 +1,15 @@
 fileFormatVersion: 2
-guid: 7ff2e4bd3b0b66b4a83698f19fdec5fb
-timeCreated: 1439625751
+guid: e42f0ae5240440743825a65b285a0a91
+timeCreated: 1440452585
 licenseType: Free
 ModelImporter:
   serializedVersion: 18
   fileIDToRecycleName:
     100000: //RootNode
-    100002: boy_pivot
     400000: //RootNode
-    400002: boy_pivot
-    2300000: boy_pivot
-    3300000: boy_pivot
-    4300000: boy_pivot
+    2300000: //RootNode
+    3300000: //RootNode
+    4300000: Icosphere
   materials:
     importMaterials: 1
     materialName: 0

@@ -6,7 +6,7 @@ public class SliceController : MonoBehaviour {
 	bool isSlicing = false;
 	GameObject startUI, endUI, lineUI;
 	RectTransform lineRectTransform;
-	float lineWidth, canvasWidth, canvasHeight;
+	float lineWidth;
 	
 	// Use this for initialization
 	void Start () {
@@ -25,9 +25,6 @@ public class SliceController : MonoBehaviour {
 		lineUI.SetActive(false);
 		lineRectTransform = lineUI.GetComponent<RectTransform>();
 		lineWidth = lineRectTransform.rect.width;
-		RectTransform canvasRectTransform = canvas.GetComponent<RectTransform>();
-		canvasWidth = canvasRectTransform.rect.width;
-		canvasHeight = canvasRectTransform.rect.height;
 	}
 	
 		// Update is called once per frame
@@ -54,8 +51,8 @@ public class SliceController : MonoBehaviour {
 			endUI.SetActive(true);
 			lineUI.SetActive(true);
 			endUI.transform.position = Input.mousePosition;
-			Vector2 linePos = (endUI.transform.position + startUI.transform.position) * 0.5f;
-			float lineHeight = Mathf.Sqrt(canvasWidth * canvasWidth + canvasHeight * canvasHeight);
+			Vector2 linePos = (endUI.transform.position + startUI.transform.position) / 2f;
+			float lineHeight = (endUI.transform.position - startUI.transform.position).magnitude;
 			Vector3 lineDir = (endUI.transform.position - startUI.transform.position).normalized;
 			lineUI.transform.position = linePos;
 			lineRectTransform.sizeDelta = new Vector2(lineWidth, lineHeight);

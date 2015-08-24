@@ -350,24 +350,24 @@ public static class MeshSlicer {
 		public Polygon(List<Line> lineList, Vector3 normal) {
 			this.orderedList = new List<Line>();
 			this.orderedList.Add(lineList[0]);
+			lineList.RemoveAt(0);
 			this.edges = null;
 			this.isClockWise = true;
 			this.edges = this.OrderLineList(lineList);
 			this.isClockWise = this.IsClockWise(normal);
 		}
 		private List<Line> OrderLineList(List<Line> lineList) {
-			int count = lineList.Count;
-			for(int i = 0; i < count; i++) {
+			for(int i = 0; i < lineList.Count; i++) {
 				if(orderedList[orderedList.Count - 1].localP2 == lineList[i].localP1) {
 					this.orderedList.Add(lineList[i]);
 					lineList.Remove(lineList[i]);
-					i = count;
+					i = lineList.Count;
 					OrderLineList(lineList);
 				} else if(orderedList[orderedList.Count - 1].localP2 == lineList[i].localP2) {
 					this.orderedList.Add(new Line(lineList[i].localP2, lineList[i].localP1, 
-													lineList[i].worldP2, lineList[i].worldP1));
+												  lineList[i].worldP2, lineList[i].worldP1));
 					lineList.Remove(lineList[i]);
-					i = count;
+					i = lineList.Count;
 					OrderLineList(lineList);
 				}
 			}
