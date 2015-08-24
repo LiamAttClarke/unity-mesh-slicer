@@ -4,69 +4,24 @@ using System.Collections.Generic;
 
 public static class MeshSlicer {
 	public static GameObject slicePrefab;
-	private static bool isCW = true;
 	private static int[] vertOrderCW = {0,3,4, 1,2,4, 4,3,1};
 	private static int[] vertOrderCCW = {4,3,0, 4,2,1, 1,3,4};
 	private static List<Vector3> slice1Verts, slice2Verts;
 	private static List<int> slice1Tris, slice2Tris;
 	private static List<Vector2> slice1UVs, slice2UVs;
-	private static List<LineSegment> orderedList;
-	private static List<LineSegment> nextRing = new List<LineSegment>();
-	
-	public struct CustomPlane {
-		public readonly Vector3 point;
-		public readonly Vector3 normal;
-		public readonly float d;
-		// Plane given 3 points
-		public CustomPlane(Vector3 point1, Vector3 point2, Vector3 point3) {
-			this.point = point1;
-			this.normal = Vector3.zero;
-			this.d = 0;
-			this.normal = PlaneNormal(point1, point2, point3);
-			this.d = PlaneDConstant(point1, this.normal);
-		}
-		// Side test: (0) = intersecting plane; (+) = above plane; (-) = below plane;
-		public float GetSide(Vector3 point) {
-			return Vector3.Dot(this.normal, point - this.point);
-		}
-		// Calculate "D" constant for the eqation of a plane (Ax + By + Cz = D)
-		private float PlaneDConstant(Vector3 planeP, Vector3 planeN) {
-			return -((planeN.x * planeP.x) + (planeN.y * planeP.y) + (planeN.z * planeP.z));
-		}
-		// Calculate plane's normal given 3 points on the planeF
-		private Vector3 PlaneNormal(Vector3 point1, Vector3 point2, Vector3 point3) {
-			Vector3 vect1 = (point2 - point1);
-			Vector3 vect2 = (point3 - point2);
-			return Vector3.Cross(vect2, vect1).normalized;
-		}
-	}
-	
-	private struct LineSegment {
-		public readonly Vector3 localP1;
-		public readonly Vector3 localP2;
-		public readonly Vector3 worldP1;
-		public readonly Vector3 worldP2;
-		public readonly Vector3 worldDir;
-		public LineSegment(Vector3 localP1, Vector3 localP2, Vector3 worldP1, Vector3 worldP2) {
-			this.localP1 = localP1;
-			this.localP2 = localP2;
-			this.worldP1 = worldP1;
-			this.worldP2 = worldP2;
-			this.worldDir = (worldP2 - worldP1).normalized;
-		}
-	}
+	private static List<Line> lineLoop;
 	
 	// Detect & slice "sliceable" GameObjects whose bounding box intersects slicing plane
 	public static void Slice(CustomPlane plane) {
 		GameObject[] convexTargets = GameObject.FindGameObjectsWithTag("Sliceable-Convex");
 		GameObject[] nonConvexTargets = GameObject.FindGameObjectsWithTag("Sliceable");
 		foreach(GameObject target in convexTargets) {
-			if(PlaneHitTest(target, plane)) {
+			if(plane.HitTest(target)) {
 				SliceMesh(target, plane, true);
 			}
 		}
 		foreach(GameObject target in nonConvexTargets) {
-			if(PlaneHitTest(target, plane)) {
+			if(plane.HitTest(target)) {
 				SliceMesh(target, plane, false);
 			}
 		}
@@ -90,7 +45,7 @@ public static class MeshSlicer {
 		slice2Tris = new List<int>();
 		slice1UVs = new List<Vector2>();
 		slice2UVs = new List<Vector2>();
-		List<LineSegment> lineLoop = new List<LineSegment>();
+		lineLoop = new List<Line>();
 		
 		// Loop through triangles
 		for(int i = 0; i < meshTris.Length / 3; i++) {
@@ -156,12 +111,12 @@ public static class MeshSlicer {
 				}
 				
 				// Points of Intersection
-				Vector3 poi1 = VectorPlanePOI(triVertsWorld2[0], (triVertsWorld2[1] - triVertsWorld2[0]).normalized, plane);
-				Vector3 poi2 = VectorPlanePOI(triVertsWorld2[0], (triVertsWorld2[2] - triVertsWorld2[0]).normalized, plane);
+				Vector3 poi1 = plane.VectorPlanePOI(triVertsWorld2[0], (triVertsWorld2[1] - triVertsWorld2[0]).normalized);
+				Vector3 poi2 = plane.VectorPlanePOI(triVertsWorld2[0], (triVertsWorld2[2] - triVertsWorld2[0]).normalized);
 				slicedTriVerts[3] = objTransform.InverseTransformPoint(poi1);
 				slicedTriVerts[4] = objTransform.InverseTransformPoint(poi2);
 
-				lineLoop.Add(new LineSegment(slicedTriVerts[3], slicedTriVerts[4], poi1, poi2));
+				lineLoop.Add(new Line(slicedTriVerts[3], slicedTriVerts[4], poi1, poi2));
 
 				// POI UVs
 				float t1 = Vector3.Distance(slicedTriVerts[0], slicedTriVerts[3]) / Vector3.Distance(slicedTriVerts[0], slicedTriVerts[1]);
@@ -202,7 +157,7 @@ public static class MeshSlicer {
 		if(lineLoop.Count > 0) {
 			// Fill convex mesh
 			if(isConvex) {
-				FillFace(lineLoop, plane.normal);
+				FillFace(plane.normal);
 			}
 			// Build Meshes
 			if(slice1Verts.Count > 0) {
@@ -216,53 +171,16 @@ public static class MeshSlicer {
 		}
 	}
 	
-	private static void FillFace(List<LineSegment> ring, Vector3 normal) {
-		isCW = true;
-		orderedList = new List<LineSegment>();
-		orderedList.Add(ring[0]);
-		ring.RemoveAt(0);
-		ring = OrderSegments (ring);
-		// test if line segments are in opposite order
-		int rightTurns = 0;
-		int leftTurns = 0;
-		for(int i = 0; i < ring.Count - 1; i++) {
-			Vector3 cross = Vector3.Cross(ring[i].worldDir, ring[i + 1].worldDir).normalized;
-			float side = Vector3.Dot (cross, normal);
-			if(side > 0) {
-				rightTurns++;
-			} else if(side < 0) {
-				leftTurns++;
-			}
-		}
-		if(leftTurns > rightTurns) {
-			// reverse order
-			normal *= -1f;
-			isCW = false;
-		}
-		TriangulatePolygon(ring, normal);
-	}
-
-	private static List<LineSegment> OrderSegments(List<LineSegment> lineLoop) {
-		for(int i = 0; i < lineLoop.Count; i++) {
-			if(orderedList[orderedList.Count - 1].localP2 == lineLoop[i].localP1) {
-				orderedList.Add(lineLoop[i]);
-				lineLoop.Remove(lineLoop[i]);
-				OrderSegments(lineLoop);
-				i = lineLoop.Count;
-			} else if(orderedList[orderedList.Count - 1].localP2 == lineLoop[i].localP2) {
-				LineSegment flippedSegment = new LineSegment(lineLoop[i].localP2, lineLoop[i].localP1, 
-				                                             lineLoop[i].worldP2, lineLoop[i].worldP1);
-				lineLoop.Remove(lineLoop[i]);
-				orderedList.Add(flippedSegment);
-				OrderSegments(lineLoop);
-				i = lineLoop.Count;
-			}
-		}
-		return orderedList;
+	private static void FillFace(Vector3 normal) {
+		do {
+			Polygon polygon = new Polygon(lineLoop, normal);
+			Vector3 polygonNormal = (polygon.isClockWise) ? normal : -normal;
+			TriangulatePolygon(polygon.edges, polygonNormal, polygon.isClockWise);
+		} while(lineLoop.Count != 0);
 	}
 	
-	private static void TriangulatePolygon(List<LineSegment> previousRing, Vector3 normal) {
-		nextRing.Clear ();
+	private static void TriangulatePolygon(List<Line> previousRing, Vector3 normal, bool isCW) {
+		List<Line> nextRing = new List<Line>();
 		for(int i = 0; i < previousRing.Count; i++) {
 			if(i == previousRing.Count - 1) {
 				nextRing.Add(previousRing[i]);
@@ -274,28 +192,28 @@ public static class MeshSlicer {
 			if(side > 0) {
 				AddTriangle(previousRing, slice1Verts, slice1Tris, slice1UVs, isCW, i);
 				AddTriangle(previousRing, slice2Verts, slice2Tris, slice2UVs, !isCW, i);
-				nextRing.Add(new LineSegment(previousRing[i].localP1, previousRing[i+1].localP2, previousRing[i].worldP1, previousRing[i+1].worldP2));
+				nextRing.Add(new Line(previousRing[i].localP1, previousRing[i+1].localP2, previousRing[i].worldP1, previousRing[i+1].worldP2));
 				i++;
 			} else if(side == 0) {
-				nextRing.Add(new LineSegment(previousRing[i].localP1, previousRing[i+1].localP2, previousRing[i].worldP1, previousRing[i+1].worldP2));
+				nextRing.Add(new Line(previousRing[i].localP1, previousRing[i+1].localP2, previousRing[i].worldP1, previousRing[i+1].worldP2));
 			} else {
 				nextRing.Add(previousRing[i]);
 			}
 		}
 		// Overflow 
 		if(nextRing.Count == previousRing.Count) {
-			Debug.Log ("Overflow");
+			Debug.Log ("Endless Recursion");
 			return; 
 		}
 		if(nextRing.Count > 3) {
-			TriangulatePolygon(new List<LineSegment>(nextRing), normal);
+			TriangulatePolygon(nextRing, normal, isCW);
 		} else if (nextRing.Count == 3) {
 			AddTriangle(nextRing, slice1Verts, slice1Tris, slice1UVs, isCW, 0);
 			AddTriangle(nextRing, slice2Verts, slice2Tris, slice2UVs, !isCW, 0);
 		}
 	}
 	
-	private static void AddTriangle(List<LineSegment> lineList, List<Vector3> vertList, List<int> triList, List<Vector2> uvList, bool isClockWise, int index) {
+	private static void AddTriangle(List<Line> lineList, List<Vector3> vertList, List<int> triList, List<Vector2> uvList, bool isClockWise, int index) {
 		if(isClockWise) {
 			vertList.Add(lineList[index + 1].localP2);
 			triList.Add(vertList.Count - 1);
@@ -342,45 +260,133 @@ public static class MeshSlicer {
 			slice.tag = "Sliceable";	
 		}
 	}
-
-	// Test intersection of plane and object's bounding box
-	private static bool PlaneHitTest(GameObject obj, CustomPlane plane) {
-		// test plane intersection against bounding box of Renderer.Bounds
-		Vector3 objMax = obj.GetComponent<MeshRenderer>().bounds.max;
-		Vector3 objMin = obj.GetComponent<MeshRenderer>().bounds.min;
-		Vector3[] boundingBoxVerts = {
-			objMin,
-			objMax,
-			new Vector3(objMin.x, objMin.y, objMax.z),
-			new Vector3(objMin.x, objMax.y, objMin.z),
-			new Vector3(objMax.x, objMin.y, objMin.z),
-			new Vector3(objMin.x, objMax.y, objMax.z),
-			new Vector3(objMax.x, objMin.y, objMax.z),
-			new Vector3(objMax.x, objMax.y, objMin.z)
-		};
-		float prevProduct = plane.GetSide(boundingBoxVerts[0]);
-		for(int i = 1; i < boundingBoxVerts.Length; i++) {
-			float currentProduct = plane.GetSide(boundingBoxVerts[i]);
-			if (prevProduct * currentProduct < 0) {
-				return true;
-			}
-			prevProduct = plane.GetSide(boundingBoxVerts[i]);
+	
+	public struct CustomPlane {
+		public readonly Vector3 point;
+		public readonly Vector3 normal;
+		public readonly float d;
+		// Plane given 3 points
+		public CustomPlane(Vector3 point1, Vector3 point2, Vector3 point3) {
+			this.point = point1;
+			this.normal = Vector3.zero;
+			this.d = 0;
+			this.normal = PlaneNormal(point1, point2, point3);
+			this.d = PlaneDConstant(point1, this.normal);
 		}
-		return false;
+		// Side test: (0) = intersecting plane; (+) = above plane; (-) = below plane;
+		public float GetSide(Vector3 point) {
+			return Vector3.Dot(this.normal, point - this.point);
+		}
+		// Test intersection of plane and object's bounding box
+		public bool HitTest(GameObject obj) {
+			// test plane intersection against bounding box of Renderer.Bounds
+			Vector3 objMax = obj.GetComponent<MeshRenderer>().bounds.max;
+			Vector3 objMin = obj.GetComponent<MeshRenderer>().bounds.min;
+			Vector3[] boundingBoxVerts = {
+				objMin,
+				objMax,
+				new Vector3(objMin.x, objMin.y, objMax.z),
+				new Vector3(objMin.x, objMax.y, objMin.z),
+				new Vector3(objMax.x, objMin.y, objMin.z),
+				new Vector3(objMin.x, objMax.y, objMax.z),
+				new Vector3(objMax.x, objMin.y, objMax.z),
+				new Vector3(objMax.x, objMax.y, objMin.z)
+			};
+			float prevProduct = this.GetSide(boundingBoxVerts[0]);
+			for(int i = 1; i < boundingBoxVerts.Length; i++) {
+				float currentProduct = this.GetSide(boundingBoxVerts[i]);
+				if (prevProduct * currentProduct < 0) {
+					return true;
+				}
+				prevProduct = this.GetSide(boundingBoxVerts[i]);
+			}
+			return false;
+		}
+		// World-space point of intersection between vector this plane
+		public Vector3 VectorPlanePOI(Vector3 point, Vector3 direction) {
+			// Plane: Ax + By + Cz = D
+			// Vector: r = (p.x, p.y, p.z) + t(d.x, d.y, d.z)
+			float a = this.normal.x;
+			float b = this.normal.y;
+			float c = this.normal.z;
+			float d = this.d;
+			float t = -1 * (a*point.x + b*point.y + c*point.z + d) / (a*direction.x + b*direction.y + c*direction.z);
+			float x = point.x + t*direction.x;		
+			float y = point.y + t*direction.y;		
+			float z = point.z + t*direction.z;
+			return new Vector3(x, y, z);
+		}
+		// Calculate "D" constant for the eqation of a plane (Ax + By + Cz = D)
+		private float PlaneDConstant(Vector3 planeP, Vector3 planeN) {
+			return -((planeN.x * planeP.x) + (planeN.y * planeP.y) + (planeN.z * planeP.z));
+		}
+		// Calculate plane's normal given 3 points on the planeF
+		private Vector3 PlaneNormal(Vector3 point1, Vector3 point2, Vector3 point3) {
+			Vector3 vect1 = (point2 - point1);
+			Vector3 vect2 = (point3 - point2);
+			return Vector3.Cross(vect2, vect1).normalized;
+		}
 	}
-
-	// Point of intersection between vector and a plane
-	private static Vector3 VectorPlanePOI(Vector3 point, Vector3 direction, CustomPlane plane) {
-		// Plane: Ax + By + Cz = D
-		// Vector: r = (p.x, p.y, p.z) + t(d.x, d.y, d.z)
-		float a = plane.normal.x;
-		float b = plane.normal.y;
-		float c = plane.normal.z;
-		float d = plane.d;
-		float t = -1 * (a*point.x + b*point.y + c*point.z + d) / (a*direction.x + b*direction.y + c*direction.z);
-		float x = point.x + t*direction.x;		
-		float y = point.y + t*direction.y;		
-		float z = point.z + t*direction.z;
-		return new Vector3(x, y, z);
+	
+	private struct Line {
+		public readonly Vector3 localP1;
+		public readonly Vector3 localP2;
+		public readonly Vector3 worldP1;
+		public readonly Vector3 worldP2;
+		public readonly Vector3 worldDir;
+		public Line(Vector3 localP1, Vector3 localP2, Vector3 worldP1, Vector3 worldP2) {
+			this.localP1 = localP1;
+			this.localP2 = localP2;
+			this.worldP1 = worldP1;
+			this.worldP2 = worldP2;
+			this.worldDir = (worldP2 - worldP1).normalized;
+		}
+	}
+	
+	private struct Polygon {
+		public readonly List<Line> edges;
+		public readonly bool isClockWise;
+		private List<Line> orderedList;
+		public Polygon(List<Line> lineList, Vector3 normal) {
+			this.orderedList = new List<Line>();
+			this.orderedList.Add(lineList[0]);
+			this.edges = null;
+			this.isClockWise = true;
+			this.edges = this.OrderLineList(lineList);
+			this.isClockWise = this.IsClockWise(normal);
+		}
+		private List<Line> OrderLineList(List<Line> lineList) {
+			int count = lineList.Count;
+			for(int i = 0; i < count; i++) {
+				if(orderedList[orderedList.Count - 1].localP2 == lineList[i].localP1) {
+					this.orderedList.Add(lineList[i]);
+					lineList.Remove(lineList[i]);
+					i = count;
+					OrderLineList(lineList);
+				} else if(orderedList[orderedList.Count - 1].localP2 == lineList[i].localP2) {
+					this.orderedList.Add(new Line(lineList[i].localP2, lineList[i].localP1, 
+													lineList[i].worldP2, lineList[i].worldP1));
+					lineList.Remove(lineList[i]);
+					i = count;
+					OrderLineList(lineList);
+				}
+			}
+			return this.orderedList;
+		}
+		// test if line segments are in opposite order
+		private bool IsClockWise(Vector3 normal) {
+			int leftTurns = 0;
+			int rightTurns = 0;
+			for(int i = 0; i < this.edges.Count - 1; i++) {
+				Vector3 cross = Vector3.Cross(this.edges[i].worldDir, this.edges[i + 1].worldDir).normalized;
+				float side = Vector3.Dot (cross, normal);
+				if(side > 0) {
+					rightTurns++;
+				} else if(side < 0) {
+					leftTurns++;
+				}
+			}
+			return (leftTurns > rightTurns) ? false : true;
+		}
 	}
 }
