@@ -2,6 +2,8 @@
 using System.Collections;
 
 public class SliceController : MonoBehaviour {
+	public AudioClip sliceSound;
+	AudioSource audioSource;
 	Vector3 sliceStartPos, sliceEndPos;
 	bool isSlicing = false;
 	GameObject startUI, endUI, lineUI;
@@ -25,6 +27,10 @@ public class SliceController : MonoBehaviour {
 		lineUI.SetActive(false);
 		lineRectTransform = lineUI.GetComponent<RectTransform>();
 		lineWidth = lineRectTransform.rect.width;
+		// Init sound
+		audioSource = gameObject.AddComponent<AudioSource>();
+		audioSource.clip = sliceSound;
+		
 	}
 	
 		// Update is called once per frame
@@ -46,6 +52,7 @@ public class SliceController : MonoBehaviour {
 				MeshSlicer.CustomPlane plane = new MeshSlicer.CustomPlane(sliceStartPos, sliceEndPos, point3);
 				MeshSlicer.Slice(plane);
 			}
+			audioSource.Play();
 		}
 		if(isSlicing) {
 			endUI.SetActive(true);
