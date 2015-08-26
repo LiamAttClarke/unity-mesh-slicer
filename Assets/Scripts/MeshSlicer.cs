@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 
 public static class MeshSlicer {
-	public static GameObject slicePrefab;
+	public static GameObject uvCamera;
 	private static int[] vertOrderCW = {0,3,4, 1,2,4, 4,3,1};
 	private static int[] vertOrderCCW = {4,3,0, 4,2,1, 1,3,4};
 	private static List<Vector3> slice1Verts, slice2Verts;
@@ -11,32 +11,14 @@ public static class MeshSlicer {
 	private static List<Vector2> slice1UVs, slice2UVs;
 	private static List<Line> lineLoop;
 	
-	// Detect & slice "sliceable" GameObjects whose bounding box intersects slicing plane
-	public static void Slice(CustomPlane plane) {
-		GameObject[] convexTargets = GameObject.FindGameObjectsWithTag("Sliceable-Convex");
-		GameObject[] nonConvexTargets = GameObject.FindGameObjectsWithTag("Sliceable");
-		foreach(GameObject target in convexTargets) {
-			if(plane.HitTest(target)) {
-				SliceMesh(target, plane, true);
-			}
-		}
-		foreach(GameObject target in nonConvexTargets) {
-			if(plane.HitTest(target)) {
-				SliceMesh(target, plane, false);
-			}
-		}
-	}
-	
 	// Slice mesh along plane intersection
-	private static void SliceMesh(GameObject obj, CustomPlane plane, bool isConvex) {
+	public static void SliceMesh(GameObject obj, CustomPlane plane, bool isConvex) {
 		// original GameObject data
 		Transform objTransform = obj.transform;
 		Mesh objMesh = obj.GetComponent<MeshFilter>().mesh;
-		Material objMaterial = obj.GetComponent<MeshRenderer>().material;
 		Vector3[] meshVerts = objMesh.vertices;
 		int[] meshTris = objMesh.triangles;
 		Vector2[] meshUVs = objMesh.uv;
-		string objName = obj.name;
 		
 		// Slice mesh data
 		slice1Verts = new List<Vector3>();
@@ -56,7 +38,7 @@ public static class MeshSlicer {
 			for(int j = 0; j < 3; j++) {
 				int meshIndexor = (i + 1) * 3 - (3 - j);
 				triVertsLocal[j] = meshVerts[meshTris[meshIndexor]]; 					// local model space vertices
-				triVertsWorld[j] = objTransform.TransformPoint(triVertsLocal[j]); 	// world space vertices
+				triVertsWorld[j] = objTransform.TransformPoint(triVertsLocal[j]); 		// world space vertices
 				triUVs[j] = meshUVs[meshTris[meshIndexor]]; 							// original uv coordinates
 			}
 			// Side test: (0) = intersecting plane; (+) = above plane; (-) = below plane;
@@ -157,26 +139,23 @@ public static class MeshSlicer {
 		if(lineLoop.Count > 0) {
 			// Fill convex mesh
 			if(isConvex) {
-				FillFace(plane.normal);
+				Vector3 normal = plane.normal;
+				do {
+					Polygon polygon = new Polygon(lineLoop, normal);
+					Vector3 polygonNormal = (polygon.isClockWise) ? normal : -normal;
+					TriangulatePolygon(polygon.edges, polygonNormal, polygon.isClockWise);
+				} while(lineLoop.Count != 0);
 			}
 			// Build Meshes
 			if(slice1Verts.Count > 0) {
-				BuildSlice(objName, slice1Verts.ToArray(), slice1Tris.ToArray(), slice1UVs.ToArray(), obj.transform, objMaterial, isConvex);
+				BuildSlice(obj, objTransform, slice1Verts.ToArray(), slice1Tris.ToArray(), slice1UVs.ToArray());
 			}
 			if(slice2Verts.Count > 0) {
-				BuildSlice(objName, slice2Verts.ToArray(), slice2Tris.ToArray(), slice2UVs.ToArray(), obj.transform, objMaterial, isConvex);
+				BuildSlice(obj, objTransform, slice2Verts.ToArray(), slice2Tris.ToArray(), slice2UVs.ToArray());
 			}
 			// Delete original
 			GameObject.Destroy(obj);
 		}
-	}
-	
-	private static void FillFace(Vector3 normal) {
-		do {
-			Polygon polygon = new Polygon(lineLoop, normal);
-			Vector3 polygonNormal = (polygon.isClockWise) ? normal : -normal;
-			TriangulatePolygon(polygon.edges, polygonNormal, polygon.isClockWise);
-		} while(lineLoop.Count != 0);
 	}
 	
 	private static void TriangulatePolygon(List<Line> previousRing, Vector3 normal, bool isCW) {
@@ -190,8 +169,8 @@ public static class MeshSlicer {
 			Vector3 cross = Vector3.Cross(previousRing[i].worldDir, previousRing[i + 1].worldDir).normalized;
 			float side = Vector3.Dot (cross, normal);
 			if(side > 0) {
-				AddTriangle(previousRing, slice1Verts, slice1Tris, slice1UVs, isCW, i);
-				AddTriangle(previousRing, slice2Verts, slice2Tris, slice2UVs, !isCW, i);
+				AddTriangle(previousRing, slice1Verts, slice1Tris, slice1UVs, isCW, i, normal);
+				AddTriangle(previousRing, slice2Verts, slice2Tris, slice2UVs, !isCW, i, normal);
 				nextRing.Add(new Line(previousRing[i].localP1, previousRing[i+1].localP2, previousRing[i].worldP1, previousRing[i+1].worldP2));
 				i++;
 			} else if(side == 0) {
@@ -208,38 +187,44 @@ public static class MeshSlicer {
 		if(nextRing.Count > 3) {
 			TriangulatePolygon(nextRing, normal, isCW);
 		} else if (nextRing.Count == 3) {
-			AddTriangle(nextRing, slice1Verts, slice1Tris, slice1UVs, isCW, 0);
-			AddTriangle(nextRing, slice2Verts, slice2Tris, slice2UVs, !isCW, 0);
+			AddTriangle(nextRing, slice1Verts, slice1Tris, slice1UVs, isCW, 0, normal);
+			AddTriangle(nextRing, slice2Verts, slice2Tris, slice2UVs, !isCW, 0, normal);
 		}
 	}
 	
-	private static void AddTriangle(List<Line> lineList, List<Vector3> vertList, List<int> triList, List<Vector2> uvList, bool isClockWise, int index) {
+	private static void AddTriangle(List<Line> lineList, List<Vector3> vertList, List<int> triList, List<Vector2> uvList, bool isClockWise, int index, Vector3 normal) {
 		if(isClockWise) {
 			vertList.Add(lineList[index + 1].localP2);
 			triList.Add(vertList.Count - 1);
+			uvList.Add( InnerUVCoord(lineList[index + 1].worldP2, normal ) );
 			vertList.Add(lineList[index].localP2);
 			triList.Add(vertList.Count - 1);
+			uvList.Add( InnerUVCoord(lineList[index].worldP2, normal ) );
 			vertList.Add(lineList[index].localP1);
 			triList.Add(vertList.Count - 1);
-			
-			uvList.Add(Vector2.zero);
-			uvList.Add(Vector2.zero);
-			uvList.Add(Vector2.zero);
+			uvList.Add( InnerUVCoord(lineList[index].worldP1, normal ) );
 		} else {
 			vertList.Add(lineList[index].localP1);
 			triList.Add(vertList.Count - 1);
+			uvList.Add( InnerUVCoord(lineList[index].worldP1, normal ) );
 			vertList.Add(lineList[index].localP2);
 			triList.Add(vertList.Count - 1);
+			uvList.Add( InnerUVCoord(lineList[index].worldP2, normal ) );
 			vertList.Add(lineList[index + 1].localP2);
 			triList.Add(vertList.Count - 1);
-
-			uvList.Add(Vector2.zero);
-			uvList.Add(Vector2.zero);
-			uvList.Add(Vector2.zero);	
+			uvList.Add( InnerUVCoord(lineList[index + 1].worldP2, normal ) );
 		}
 	}
 	
-	private static void BuildSlice(string name, Vector3[] vertices, int[] triangles, Vector2[] uv, Transform objTransform, Material objMaterial, bool isConvex) {
+	private static Vector2 InnerUVCoord(Vector3 vertex, Vector3 normal) {
+		Quaternion alignmentRotation = Quaternion.FromToRotation(normal, -Camera.main.transform.forward);
+		vertex = alignmentRotation * vertex;
+		Camera cam = uvCamera.GetComponent<Camera>();
+		Matrix4x4 matrixVP = cam.projectionMatrix * cam.worldToCameraMatrix;
+		return matrixVP * vertex;
+	}
+	
+	private static void BuildSlice(GameObject obj, Transform objTransform, Vector3[] vertices, int[] triangles, Vector2[] uv) {
 		// Generate Mesh
 		Mesh sliceMesh = new Mesh();
 		sliceMesh.vertices = vertices;
@@ -247,18 +232,17 @@ public static class MeshSlicer {
 		sliceMesh.uv = uv;
 		sliceMesh.RecalculateNormals();
 		sliceMesh.RecalculateBounds();
+		
 		// Instantiate Slice and update properties
-		GameObject slice = (GameObject)GameObject.Instantiate (slicePrefab, objTransform.position, objTransform.rotation);
-		slice.name = name + "-Slice";
+		GameObject slice = (GameObject)GameObject.Instantiate (obj, objTransform.position, objTransform.rotation);
+		slice.name = obj.name + "-Slice";
 		slice.GetComponent<MeshFilter>().mesh = sliceMesh;
-		slice.GetComponent<MeshCollider>().sharedMesh = sliceMesh;
-		slice.transform.localScale = objTransform.localScale;
-		slice.GetComponent<MeshRenderer> ().material = objMaterial;
-		if(isConvex) {
-			slice.tag = "Sliceable-Convex";
-		} else {
-			slice.tag = "Sliceable";	
-		}
+		GameObject.Destroy(slice.GetComponent<Collider>());
+		MeshCollider sliceMeshCollider = slice.AddComponent<MeshCollider>();
+		sliceMeshCollider.sharedMesh = sliceMesh;
+		sliceMeshCollider.convex = true;
+		Debug.Log(slice.GetComponent<MeshCollider>().convex);
+		slice.GetComponent<Rigidbody>().velocity = obj.GetComponent<Rigidbody>().velocity;
 	}
 	
 	public struct CustomPlane {

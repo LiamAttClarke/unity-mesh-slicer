@@ -2,7 +2,7 @@
 using System.Collections;
 
 public class SliceController : MonoBehaviour {
-	public AudioClip sliceSound;
+	public AudioClip sliceMissSound;
 	AudioSource audioSource;
 	Vector3 sliceStartPos, sliceEndPos;
 	bool isSlicing = false;
@@ -12,7 +12,11 @@ public class SliceController : MonoBehaviour {
 	
 	// Use this for initialization
 	void Start () {
-		MeshSlicer.slicePrefab = (GameObject)Resources.Load("Prefabs/Slice");
+		// UV Mapping Camera
+		MeshSlicer.uvCamera = Instantiate( (GameObject)Resources.Load("Prefabs/UV_Camera") );
+		// Init sound
+		audioSource = gameObject.AddComponent<AudioSource>();
+		// Init GUI
 		GameObject canvas = GameObject.Find("Canvas");
 		GameObject pointPrefab = (GameObject)Resources.Load("Prefabs/Slice_Point");
 		GameObject linePrefab = (GameObject)Resources.Load("Prefabs/Slice_Line");
@@ -27,13 +31,9 @@ public class SliceController : MonoBehaviour {
 		lineUI.SetActive(false);
 		lineRectTransform = lineUI.GetComponent<RectTransform>();
 		lineWidth = lineRectTransform.rect.width;
-		// Init sound
-		audioSource = gameObject.AddComponent<AudioSource>();
-		audioSource.clip = sliceSound;
-		
 	}
 	
-		// Update is called once per frame
+	// Update is called once per frame
 	void Update () {
 		Vector3 mousePos;
 		if (Input.GetMouseButtonDown (0)) {
@@ -50,9 +50,8 @@ public class SliceController : MonoBehaviour {
 				mousePos = new Vector3(Input.mousePosition.x, Input.mousePosition.y, 10.0f);
 				Vector3 point3 = Camera.main.ScreenToWorldPoint(mousePos);
 				MeshSlicer.CustomPlane plane = new MeshSlicer.CustomPlane(sliceStartPos, sliceEndPos, point3);
-				MeshSlicer.Slice(plane);
+				Slice(plane);
 			}
-			audioSource.Play();
 		}
 		if(isSlicing) {
 			endUI.SetActive(true);
@@ -68,6 +67,29 @@ public class SliceController : MonoBehaviour {
 			startUI.SetActive(false);
 			endUI.SetActive(false);
 			lineUI.SetActive(false);
+		}
+	}
+	
+	// Detect & slice "sliceable" GameObjects whose bounding box intersects slicing plane
+	private void Slice(MeshSlicer.CustomPlane plane) {
+		SliceableObject[] sliceableTargets = (SliceableObject[])FindObjectsOfType( typeof(SliceableObject) );
+		bool isSliced = false;
+		foreach(SliceableObject sliceableTarget in sliceableTargets) {
+			GameObject target = sliceableTarget.gameObject;
+			if(plane.HitTest(target)) {
+				if(target.GetComponent<SliceableObject>().isConvex) {
+					MeshSlicer.SliceMesh(target, plane, true);
+					//audioSource.PlayOneShot(sliceableTarget.sliceSound, 1.0f);
+					isSliced = true;
+				} else {
+					MeshSlicer.SliceMesh(target, plane, false);
+					//audioSource.PlayOneShot(sliceableTarget.sliceSound, 1.0f);
+					isSliced = true;
+				}
+			}
+		}
+		if(!isSliced) {
+			audioSource.PlayOneShot(sliceMissSound, 1.0f);
 		}
 	}
 }

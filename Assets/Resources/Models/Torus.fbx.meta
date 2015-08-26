@@ -1,18 +1,18 @@
 fileFormatVersion: 2
-guid: 5891c7e8ed296b449b5e2c2277bdef4a
-timeCreated: 1439626855
+guid: 1ce0a5da71715e5478479479407b805b
+timeCreated: 1440561045
 licenseType: Free
 ModelImporter:
   serializedVersion: 18
   fileIDToRecycleName:
     100000: Camera
     100002: Lamp
-    100004: Torus
-    100006: //RootNode
+    100004: //RootNode
+    100006: Torus
     400000: Camera
     400002: Lamp
-    400004: Torus
-    400006: //RootNode
+    400004: //RootNode
+    400006: Torus
     2300000: Torus
     3300000: Torus
     4300000: Torus
