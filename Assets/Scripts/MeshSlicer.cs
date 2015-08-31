@@ -241,7 +241,7 @@ public static class MeshSlicer {
 		MeshCollider sliceMeshCollider = slice.AddComponent<MeshCollider>();
 		sliceMeshCollider.sharedMesh = sliceMesh;
 		sliceMeshCollider.convex = true;
-		Debug.Log(slice.GetComponent<MeshCollider>().convex);
+		sliceMeshCollider.material = obj.GetComponent<Collider>().material;
 		slice.GetComponent<Rigidbody>().velocity = obj.GetComponent<Rigidbody>().velocity;
 	}
 	
