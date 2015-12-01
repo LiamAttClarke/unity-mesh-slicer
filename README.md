@@ -1,2 +1,2 @@
 # mesh-slicing
-Slice 3D meshes in real-time
+Bisect 3D geometry in real-time.
