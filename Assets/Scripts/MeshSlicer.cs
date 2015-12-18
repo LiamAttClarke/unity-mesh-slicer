@@ -158,61 +158,64 @@ public static class MeshSlicer {
 		}
 	}
 	
-	private static void TriangulatePolygon(List<Line> previousRing, Vector3 normal, bool isCW) {
-		List<Line> nextRing = new List<Line>();
-		for(int i = 0; i < previousRing.Count; i++) {
-			if(i == previousRing.Count - 1) {
-				nextRing.Add(previousRing[i]);
-				i = previousRing.Count;
-				continue;
-			}
-			Vector3 cross = Vector3.Cross(previousRing[i].worldDir, previousRing[i + 1].worldDir).normalized;
-			float side = Vector3.Dot (cross, normal);
-			if(side > 0) {
-				AddTriangle(previousRing, slice1Verts, slice1Tris, slice1UVs, isCW, i, normal);
-				AddTriangle(previousRing, slice2Verts, slice2Tris, slice2UVs, !isCW, i, normal);
-				nextRing.Add(new Line(previousRing[i].localP1, previousRing[i+1].localP2, previousRing[i].worldP1, previousRing[i+1].worldP2));
-				i++;
-			} else if(side == 0) {
-				nextRing.Add(new Line(previousRing[i].localP1, previousRing[i+1].localP2, previousRing[i].worldP1, previousRing[i+1].worldP2));
-			} else {
-				nextRing.Add(previousRing[i]);
-			}
-		}
-		// Overflow 
-		if(nextRing.Count == previousRing.Count) {
-			Debug.Log ("Endless Recursion");
-			return; 
-		}
-		if(nextRing.Count > 3) {
-			TriangulatePolygon(nextRing, normal, isCW);
-		} else if (nextRing.Count == 3) {
-			AddTriangle(nextRing, slice1Verts, slice1Tris, slice1UVs, isCW, 0, normal);
-			AddTriangle(nextRing, slice2Verts, slice2Tris, slice2UVs, !isCW, 0, normal);
-		}
+	private static void TriangulatePolygon(List<Line> currentRing, Vector3 normal, bool isCW) {
+        if (currentRing.Count == 1) {
+            return;
+        } else if (currentRing.Count <= 3) {
+            AddTriangle(currentRing, slice1Verts, slice1Tris, slice1UVs, isCW, 0, normal);
+            AddTriangle(currentRing, slice2Verts, slice2Tris, slice2UVs, !isCW, 0, normal);
+        } else {
+            List<Line> nextRing = new List<Line>();
+            for (int i = 0; i < currentRing.Count; i++) {
+                if (i == currentRing.Count - 1) {
+                    nextRing.Add(currentRing[i]);
+                    continue;
+                }
+                Vector3 cross = Vector3.Cross(currentRing[i].worldDir, currentRing[i + 1].worldDir).normalized;
+                float side = Vector3.Dot(cross, normal);
+                if (side >= 0) {
+                    AddTriangle(currentRing, slice1Verts, slice1Tris, slice1UVs, isCW, i, normal);
+                    AddTriangle(currentRing, slice2Verts, slice2Tris, slice2UVs, !isCW, i, normal);
+                    nextRing.Add(new Line(currentRing[i].localPoint1, currentRing[i + 1].localPoint2, currentRing[i].worldPoint1, currentRing[i + 1].worldPoint2));
+                    i++;
+                } else { // left turn
+                    nextRing.Add(currentRing[i]);
+                }
+            }
+            // Overflow 
+            if (nextRing.Count == currentRing.Count) {
+                Debug.Log("Endless Recursion " + nextRing.Count);
+                return;
+            }
+            // recurse
+            TriangulatePolygon(nextRing, normal, isCW);
+        }
 	}
 	
 	private static void AddTriangle(List<Line> lineList, List<Vector3> vertList, List<int> triList, List<Vector2> uvList, bool isClockWise, int index, Vector3 normal) {
+        if (lineList.Count < 2) {
+            throw new UnityException("lineList must have at least 2 elements.");
+        }
 		if(isClockWise) {
-			vertList.Add(lineList[index + 1].localP2);
+			vertList.Add(lineList[index + 1].localPoint2);
 			triList.Add(vertList.Count - 1);
-			uvList.Add( InnerUVCoord(lineList[index + 1].worldP2, normal ) );
-			vertList.Add(lineList[index].localP2);
+			uvList.Add( InnerUVCoord(lineList[index + 1].worldPoint2, normal ) );
+			vertList.Add(lineList[index].localPoint2);
 			triList.Add(vertList.Count - 1);
-			uvList.Add( InnerUVCoord(lineList[index].worldP2, normal ) );
-			vertList.Add(lineList[index].localP1);
+			uvList.Add( InnerUVCoord(lineList[index].worldPoint2, normal ) );
+			vertList.Add(lineList[index].localPoint1);
 			triList.Add(vertList.Count - 1);
-			uvList.Add( InnerUVCoord(lineList[index].worldP1, normal ) );
+			uvList.Add( InnerUVCoord(lineList[index].worldPoint1, normal ) );
 		} else {
-			vertList.Add(lineList[index].localP1);
+			vertList.Add(lineList[index].localPoint1);
 			triList.Add(vertList.Count - 1);
-			uvList.Add( InnerUVCoord(lineList[index].worldP1, normal ) );
-			vertList.Add(lineList[index].localP2);
+			uvList.Add( InnerUVCoord(lineList[index].worldPoint1, normal ) );
+			vertList.Add(lineList[index].localPoint2);
 			triList.Add(vertList.Count - 1);
-			uvList.Add( InnerUVCoord(lineList[index].worldP2, normal ) );
-			vertList.Add(lineList[index + 1].localP2);
+			uvList.Add( InnerUVCoord(lineList[index].worldPoint2, normal ) );
+			vertList.Add(lineList[index + 1].localPoint2);
 			triList.Add(vertList.Count - 1);
-			uvList.Add( InnerUVCoord(lineList[index + 1].worldP2, normal ) );
+			uvList.Add( InnerUVCoord(lineList[index + 1].worldPoint2, normal ) );
 		}
 	}
 	
@@ -235,7 +238,7 @@ public static class MeshSlicer {
 		
 		// Instantiate Slice and update properties
 		GameObject slice = (GameObject)GameObject.Instantiate (obj, objTransform.position, objTransform.rotation);
-		slice.name = obj.name + "-Slice";
+		slice.name = obj.name;
 		slice.GetComponent<MeshFilter>().mesh = sliceMesh;
 		GameObject.Destroy(slice.GetComponent<Collider>());
 		MeshCollider sliceMeshCollider = slice.AddComponent<MeshCollider>();
@@ -313,17 +316,17 @@ public static class MeshSlicer {
 	}
 	
 	private struct Line {
-		public readonly Vector3 localP1;
-		public readonly Vector3 localP2;
-		public readonly Vector3 worldP1;
-		public readonly Vector3 worldP2;
+		public readonly Vector3 localPoint1;
+		public readonly Vector3 localPoint2;
+		public readonly Vector3 worldPoint1;
+		public readonly Vector3 worldPoint2;
 		public readonly Vector3 worldDir;
 		public Line(Vector3 localP1, Vector3 localP2, Vector3 worldP1, Vector3 worldP2) {
-			this.localP1 = localP1;
-			this.localP2 = localP2;
-			this.worldP1 = worldP1;
-			this.worldP2 = worldP2;
-			this.worldDir = (worldP2 - worldP1).normalized;
+            localPoint1 = localP1;
+            localPoint2 = localP2;
+			worldPoint1 = worldP1;
+			worldPoint2 = worldP2;
+			worldDir = (worldP2 - worldP1).normalized;
 		}
 	}
 	
@@ -342,14 +345,14 @@ public static class MeshSlicer {
 		}
 		private List<Line> OrderLineList(List<Line> lineList) {
 			for(int i = 0; i < lineList.Count; i++) {
-				if(orderedList[orderedList.Count - 1].localP2 == lineList[i].localP1) {
+				if(orderedList[orderedList.Count - 1].localPoint2 == lineList[i].localPoint1) {
 					this.orderedList.Add(lineList[i]);
 					lineList.Remove(lineList[i]);
 					i = lineList.Count;
 					OrderLineList(lineList);
-				} else if(orderedList[orderedList.Count - 1].localP2 == lineList[i].localP2) {
-					this.orderedList.Add(new Line(lineList[i].localP2, lineList[i].localP1, 
-												  lineList[i].worldP2, lineList[i].worldP1));
+				} else if(orderedList[orderedList.Count - 1].localPoint2 == lineList[i].localPoint2) {
+					this.orderedList.Add(new Line(lineList[i].localPoint2, lineList[i].localPoint1, 
+												  lineList[i].worldPoint2, lineList[i].worldPoint1));
 					lineList.Remove(lineList[i]);
 					i = lineList.Count;
 					OrderLineList(lineList);
