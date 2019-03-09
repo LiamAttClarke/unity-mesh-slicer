@@ -1,4 +1,4 @@
-# Geometry Slicer
+# Unity Mesh Slicer
 Real-time 3D geometry bisection. Works with both convex and non-convex geometries.
 
 <img src="https://i.imgur.com/79QT9ZK.png" width="256" height="256" />
