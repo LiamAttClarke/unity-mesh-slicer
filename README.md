@@ -7,4 +7,3 @@ Real-time 3D geometry bisection. Works with both convex and non-convex geometrie
 ![](screenshots/3.jpg)
 ![](screenshots/4.jpg)
 ![](screenshots/5.jpg)
-![](screenshots/6.jpg)
